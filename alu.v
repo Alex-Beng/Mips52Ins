@@ -1,7 +1,7 @@
-module alu( data1, data2, alu_ctr, d_out, zero_flag, EXP_overflow );
+module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
     input [31:0] data1;
     input [31:0] data2;
-    input [1:0]  alu_ctr;
+    input [1:0]  alu_op;
     output [31:0] d_out;
     output zero_flag;
     output EXP_overflow;
@@ -11,14 +11,14 @@ module alu( data1, data2, alu_ctr, d_out, zero_flag, EXP_overflow );
     wire [32:0] op_out;
 
     always @(*) begin
-        case(alu_ctr)
+        case(alu_op)
             2'b00 : op_out <= op1+op2;
             2'b01 : op_out <= op1-op2;
         endcase
     end
 
     always @(*) begin
-        case(alu_ctr)
+        case(alu_op)
             2'b00 : d_out <= op_out[31:0];
             2'b01 : d_out <= op_out[31:0];
             2'b10 : d_out <= data1|data2;
