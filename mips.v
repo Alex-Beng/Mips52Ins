@@ -1,9 +1,13 @@
-module mips( clk, rst );
+module mips( clk, rst, 
+             IntegerOverflow);
     input clk;
     input rst;
+    output IntegerOverflow;
 
     // exception part
     reg IntegerOverflow;
+
+    wire alu_exp_overflow;
     // exception end
 
     // decode part
@@ -225,7 +229,9 @@ module mips( clk, rst );
     end
 
     always @(*) begin
-        ext_op <= 1'b1;
+        if (state == Decode) begin
+            ext_op <= 1'b1;
+        end
     end
     // contral signal end
 
@@ -335,7 +341,6 @@ module mips( clk, rst );
     reg [31:0] alu_op1;
     reg [31:0] alu_op2;
     wire [31:0] alu_dout;
-    wire alu_exp_overflow;
 
     always @(*) begin
         alu_op1 <= rf_rd_data1_reg;
@@ -373,7 +378,7 @@ module mips( clk, rst );
     // dm part
     wire [31:0] dm_dout;
     dm U_DM(
-        .clk(clk), .addr(rf_rd_data2_reg[11:2]), .dm_wr(dm_wr), .d_in(alu_dout_reg), .d_out(dm_dout)
+        .clk(clk), .d_in(rf_rd_data2_reg), .dm_wr(dm_wr), .addr(alu_dout_reg[11:2]), .d_out(dm_dout)
     );
 
     always @(posedge clk or posedge rst) begin
