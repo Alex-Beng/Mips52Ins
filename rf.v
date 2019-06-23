@@ -2,7 +2,16 @@ module rf( clk, rst,
         rf_wr, wr_data, wr_reg,
         rd_data1, rd_reg1,
         rd_data2, rd_reg2 );
-        
+    input clk;
+    input rst;
+    input rf_wr;
+    input [31:0] wr_data;
+    input [4:0]  wr_reg;
+    input [4:0]  rd_reg1;
+    input [4:0]  rd_reg2;
+    output [31:0] rd_data1;
+    output [31:0] rd_data2;
+
     reg [31:0] rg_fl[31:0];
 
     always @(posedge clk or posedge rst) begin

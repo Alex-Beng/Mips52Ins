@@ -1,7 +1,7 @@
 module ext( d_in16, d_out32, ext_op );
     input  ext_op;
     input  [15:0] d_in16;
-    output [31:0] d_out32;
+    output reg [31:0] d_out32;
 
     always @(*) begin
         case (ext_op) 
