@@ -155,7 +155,7 @@ module mips( clk, rst );
                 rf_wr_addr_sel <= 2'b01;
             end
             else begin
-                rf_wr_addr_sel <= 1'b00;
+                rf_wr_addr_sel <= 2'b00;
             end
         end
         else if (state == DmWrRf) begin
@@ -237,14 +237,14 @@ module mips( clk, rst );
     // npc part
     wire [31:0] imm_ext32;
     npc U_NPC(
-        .pc(pc), .d_ins26(ins[25:0], .d_ext32(imm_ext32), .npc_op(npc_op), .npc(npc));
+        .pc(pc), .d_ins26(ins[25:0]), .d_ext32(imm_ext32), .npc_op(npc_op), .npc(npc)
     );
     // npc end
 
     // im part
     wire [31:0] im_dout_ins;
     im U_IM(
-        .addr(pc[11:2]), d_out(im_dout_ins)
+        .addr(pc[11:2]), .d_out(im_dout_ins)
     );
     // im end
 
@@ -276,7 +276,7 @@ module mips( clk, rst );
                 rf_wr_addr <= 5'h1F;
             end
             else if (rf_wr_addr_sel == 2'b00) begin
-                rf_wr_addr <= ins[15:11]
+                rf_wr_addr <= ins[15:11];
             end
             else begin
                 rf_wr_addr <= ins[20:16];
@@ -300,8 +300,8 @@ module mips( clk, rst );
     rf U_RF(
         .clk(clk), .rst(rst),
         .rf_wr(rf_wr), .wr_data(rf_wr_data), .wr_reg(rf_wr_addr),
-        .rd_data1(rf_rd_data1), rd_reg1(ins[25:21]),
-        .rd_data2(rf_rd_data2), rd_reg2(ins[20:16])
+        .rd_data1(rf_rd_data1), .rd_reg1(ins[25:21]),
+        .rd_data2(rf_rd_data2), .rd_reg2(ins[20:16])
     );
 
     reg [31:0] rf_rd_data1_reg;
@@ -346,7 +346,7 @@ module mips( clk, rst );
     end
 
     alu U_ALU(
-        .data1(alu_op1), .data2(alu_op2), .alu_op(alu_op), .d_out(alu_dout) .zero_flag(alu_zero_flag), .EXP_overflow(alu_exp_overflow)
+        .data1(alu_op1), .data2(alu_op2), .alu_op(alu_op), .d_out(alu_dout), .zero_flag(alu_zero_flag), .EXP_overflow(alu_exp_overflow)
     );
 
     always @(posedge clk or posedge rst) begin
@@ -361,7 +361,7 @@ module mips( clk, rst );
 
     // ext part
     ext U_EXT(
-        .d_in16(ins[15:0]) .d_out32(imm_ext32)
+        .d_in16(ins[15:0]), .d_out32(imm_ext32)
     );
     // ext end
 
