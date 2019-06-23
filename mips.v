@@ -13,13 +13,17 @@ module mips( clk, rst,
     // decode part
     wire  [31:0] ins;
 
-    wire addu  = (ins[31:26] == 6'b00_0000 && ~ins[1])? 1:0;
-    wire subu  = (ins[31:26] == 6'b00_0000 && ins[1])? 1:0;
-    wire ori   = (ins[31:26] == 6'b00_1101)? 1:0;
-    wire lw    = (ins[31:26] == 6'b10_0011)? 1:0;
-    wire sw    = (ins[31:26] == 6'b10_1011)? 1:0;
-    wire beq   = (ins[31:26] == 6'b00_0100)? 1:0;
-    wire jal   = (ins[31:26] == 6'b00_0011)? 1:0;
+    wire addu  = ( ins[31:26] == 6'b00_0000 
+                && ins[10:6]  == 5'b00_000
+                && ins[5:0]   == 6'b100_001 )? 1:0;
+    wire subu  = ( ins[31:26] == 6'b00_0000 
+                && ins[10:6]  == 5'b00_000
+                && ins[5:0]   == 6'b100_011)? 1:0;
+    wire ori   = ( ins[31:26] == 6'b00_1101)? 1:0;
+    wire lw    = ( ins[31:26] == 6'b10_0011)? 1:0;
+    wire sw    = ( ins[31:26] == 6'b10_1011)? 1:0;
+    wire beq   = ( ins[31:26] == 6'b00_0100)? 1:0;
+    wire jal   = ( ins[31:26] == 6'b00_0011)? 1:0;
     // decode end
 
     // fsm part
