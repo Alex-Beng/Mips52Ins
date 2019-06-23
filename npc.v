@@ -1,7 +1,7 @@
 module npc( pc, d_ins26, d_ext32, npc_op, npc );
     input  [31:0] pc;
     input  [25:0] d_ins26;
-    input  [29:0] d_ext32;
+    input  [31:0] d_ext32;
     input  [1:0]  npc_op;
     output reg [31:0] npc;
 

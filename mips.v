@@ -92,6 +92,7 @@ module mips( clk, rst );
     reg [1:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
     reg [1:0] alu_op;           // alu计算的控制信号
     reg [1:0] npc_op;           // npc计算的控制信号
+    reg [0:0] ext_op;           // ext计算的控制信号
 
     always @(*) begin
         if (state == JalExe 
@@ -221,6 +222,10 @@ module mips( clk, rst );
         else begin
             npc_op <= 2'b00;
         end
+    end
+
+    always @(*) begin
+        ext_op <= 1'b1;
     end
     // contral signal end
 
@@ -361,14 +366,14 @@ module mips( clk, rst );
 
     // ext part
     ext U_EXT(
-        .d_in16(ins[15:0]), .d_out32(imm_ext32)
+        .d_in16(ins[15:0]), .d_out32(imm_ext32), .ext_op(ext_op)
     );
     // ext end
 
     // dm part
     wire [31:0] dm_dout;
     dm U_DM(
-        .clk(clk), .addr(rf_rd_data2_reg), .dm_wr(dm_wr), .d_in(alu_dout_reg), .d_out(dm_dout)
+        .clk(clk), .addr(rf_rd_data2_reg[11:2]), .dm_wr(dm_wr), .d_in(alu_dout_reg), .d_out(dm_dout)
     );
 
     always @(posedge clk or posedge rst) begin
