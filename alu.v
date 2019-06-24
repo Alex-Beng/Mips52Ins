@@ -4,7 +4,7 @@ module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
     input [1:0]  alu_op;
     output reg [31:0] d_out;
     output zero_flag;
-    output EXP_overflow;
+    output reg EXP_overflow;
 
     wire [32:0] op1 = {data1[31], data1};
     wire [32:0] op2 = {data2[31], data2};
@@ -27,5 +27,14 @@ module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
     end
 
     assign zero_flag = (data1==data2);
-    assign EXP_overflow = (op_out[32]^op_out[31]);
+
+    always @(*) begin
+        if (alu_op == 2'b00
+        |   alu_op == 2'b01) begin
+            EXP_overflow <= (op_out[32]^op_out[31]);
+        end
+        else begin
+            EXP_overflow <= 1'b0;
+        end
+    end
 endmodule

@@ -10,8 +10,11 @@ module mips( clk, rst,
     wire alu_exp_overflow;
 
     always @(*) begin
-        if (alu_exp_overflow) begin
-            IntegerOverflow <= 1'b1;
+        if (add | addi 
+        |sub) begin
+            if (alu_exp_overflow) begin
+                IntegerOverflow <= 1'b1;
+            end 
         end
         else begin
             IntegerOverflow <= 1'b0;
@@ -115,8 +118,9 @@ module mips( clk, rst,
             case (state)
                 Fetch :  state <= Decode;
                 Decode: begin
-                    if ( add | addu | addi
-                    | subu | ori) begin
+                    if ( add | addi | addu | addiu
+                    |    sub 
+                    |    subu | ori) begin
                         state <= AluExe;
                     end
                     else if (lw | sw) begin
@@ -211,11 +215,12 @@ module mips( clk, rst,
     end
     
     always @(*) begin
+    // 1-立即数 0-寄存器data2
         if (state == DmExe) begin
             alu_op2_sel <= 1'b1;
         end
         else if (state == AluExe) begin
-            if (ori | addi) begin
+            if (ori | addi | addiu) begin
                 alu_op2_sel <= 1'b1;
             end
             else begin
@@ -234,7 +239,7 @@ module mips( clk, rst,
             rf_wr_addr_sel <= 2'b10;
         end
         else if (state == AluWrRf) begin
-            if (ori | addi) begin
+            if (ori | addi | addiu) begin
                 rf_wr_addr_sel <= 2'b01;
             end
             else begin
@@ -273,10 +278,10 @@ module mips( clk, rst,
             if (ori) begin
                 alu_op <= 2'b10;
             end
-            else if (add | addu | addi) begin
+            else if (add | addu | addi | addiu) begin
                 alu_op <= 2'b00;
             end
-            else if (subu) begin
+            else if (sub | subu) begin
                 alu_op <= 2'b01;
             end
         end
