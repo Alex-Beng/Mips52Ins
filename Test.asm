@@ -5,9 +5,16 @@
 # Settings -> Memory Configuration -> Compact, Data at address 0
 
 .text
+	add $7, $0, $2
+	add $7, $1, $2
+	
+	addi $7, $0, 0
 	ori $29, $0, 12
 	ori $2, $0, 0x1234
 	ori $3, $0, 0x3456
+	ori $9, $0, 0x1111
+	add $7, $9, $9
+	sw  $7, 8($0)
 	addu $4, $2, $3
 	subu $6, $3, $4
 	sw $2, 0($0)

@@ -8,6 +8,15 @@ module mips( clk, rst,
     reg IntegerOverflow;
 
     wire alu_exp_overflow;
+
+    always @(*) begin
+        if (alu_exp_overflow) begin
+            IntegerOverflow <= 1'b1;
+        end
+        else begin
+            IntegerOverflow <= 1'b0;
+        end
+    end
     // exception end
 
     // decode part
@@ -70,8 +79,8 @@ module mips( clk, rst,
 
     wire mfhi   = ( ins[31:26] == 6'b00_0000 && ins[25:16] == 10'b0_000_000_000 && ins[10:6] == 5'b00_000 && ins[5:0] == 6'b010_000)? 1:0;
     wire mflo   = ( ins[31:26] == 6'b00_0000 && ins[25:16] == 10'b0_000_000_000 && ins[10:6] == 5'b00_000 && ins[5:0] == 6'b010_010)? 1:0;
-    wire mflo   = ( ins[31:26] == 6'b00_0000 && ins[20:6]  == 15'b000_000_000_000_000  && ins[5:0] == 6'b010_001)? 1:0;
-    wire mflo   = ( ins[31:26] == 6'b00_0000 && ins[20:6]  == 15'b000_000_000_000_000  && ins[5:0] == 6'b010_011)? 1:0;
+    wire mthi   = ( ins[31:26] == 6'b00_0000 && ins[20:6]  == 15'b000_000_000_000_000  && ins[5:0] == 6'b010_001)? 1:0;
+    wire mtlo   = ( ins[31:26] == 6'b00_0000 && ins[20:6]  == 15'b000_000_000_000_000  && ins[5:0] == 6'b010_011)? 1:0;
 
     wire lb     = ( ins[31:26] == 6'b10_0000)? 1:0;
     wire lbu    = ( ins[31:26] == 6'b10_0100)? 1:0;
@@ -106,7 +115,8 @@ module mips( clk, rst,
             case (state)
                 Fetch :  state <= Decode;
                 Decode: begin
-                    if (addu | subu | ori) begin
+                    if ( add | addu | addi
+                    | subu | ori) begin
                         state <= AluExe;
                     end
                     else if (lw | sw) begin
@@ -163,7 +173,6 @@ module mips( clk, rst,
     always @(*) begin
         if (state == JalExe 
         ||  state == AluWrRf
-        ||  state == DmLw
         ||  state == DmWrRf) begin
             rf_wr <= 1'b1;
         end
@@ -202,12 +211,16 @@ module mips( clk, rst,
     end
     
     always @(*) begin
-        if (state == DmExe
-        || (state == AluExe && ori) ) begin
+        if (state == DmExe) begin
             alu_op2_sel <= 1'b1;
         end
-        else begin
-            alu_op2_sel <= 1'b0;
+        else if (state == AluExe) begin
+            if (ori | addi) begin
+                alu_op2_sel <= 1'b1;
+            end
+            else begin
+                alu_op2_sel <= 1'b0;
+            end
         end
     end
     
@@ -218,7 +231,7 @@ module mips( clk, rst,
             rf_wr_addr_sel <= 2'b10;
         end
         else if (state == AluWrRf) begin
-            if (ori) begin
+            if (ori | addi) begin
                 rf_wr_addr_sel <= 2'b01;
             end
             else begin
@@ -239,8 +252,7 @@ module mips( clk, rst,
         if (state == AluWrRf) begin
             rf_wr_data_sel <= 2'b00;
         end
-        else if (state == DmWrRf
-              || state == DmLw) begin
+        else if (state == DmWrRf) begin
             rf_wr_data_sel <= 2'b01;
         end
         else if (state == JalExe) begin
@@ -258,7 +270,7 @@ module mips( clk, rst,
             if (ori) begin
                 alu_op <= 2'b10;
             end
-            else if (addu) begin
+            else if (add | addu | addi) begin
                 alu_op <= 2'b00;
             end
             else if (subu) begin
@@ -291,7 +303,9 @@ module mips( clk, rst,
     end
 
     always @(*) begin
-        if (state == Decode) begin
+    // ext_op
+    // 1-sign ext 0-unsign ext
+        if (state == AluExe) begin
             ext_op <= 1'b1;
         end
     end
