@@ -109,7 +109,7 @@ module mips( clk, rst,
                 Decode: begin
                     if ( add | addi | addu | addiu
                     |    sub | subu 
-                    |    slt | slti
+                    |    slt | slti | sltu
                     |    ori) begin
                         state <= AluExe;
                     end
@@ -160,7 +160,7 @@ module mips( clk, rst,
     reg alu_op2_sel;            // alu第二个操作数前的mux控制信号
     reg [1:0] rf_wr_addr_sel;   // rf的写地址前的mux控制信号
     reg [1:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
-    reg [1:0] alu_op;           // alu计算的控制信号
+    reg [2:0] alu_op;           // alu计算的控制信号
     reg [1:0] npc_op;           // npc计算的控制信号
     reg [0:0] ext_op;           // ext计算的控制信号
 
@@ -268,28 +268,32 @@ module mips( clk, rst,
     always @(*) begin
     // alu_op
     // 0-plus 1-minus  2-or 3-sign-compare(op1<op2高有效)
+    // 4-unsign-compare
         if (state == AluExe) begin
             if (ori) begin
-                alu_op <= 2'b10;
+                alu_op <= 3'b010;
             end
             else if (add | addu | addi | addiu) begin
-                alu_op <= 2'b00;
+                alu_op <= 3'b000;
             end
             else if (sub | subu) begin
-                alu_op <= 2'b01;
+                alu_op <= 3'b001;
             end
             else if (slt | slti) begin
-                alu_op <= 2'b11;
+                alu_op <= 3'b011;
+            end
+            else if (sltu) begin
+                alu_op <= 3'b100; 
             end
         end
         else if (state == DmExe) begin
-            alu_op <= 2'b00;
+            alu_op <= 3'b000;
         end
         else if (state == BeqExe) begin
-            alu_op <= 2'b01;
+            alu_op <= 3'b001;
         end
         else begin
-            alu_op <= 2'bxx;
+            alu_op <= 3'bxxx;
         end
     end
 
