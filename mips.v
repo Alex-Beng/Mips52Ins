@@ -9,17 +9,6 @@ module mips( clk, rst,
 
     wire alu_exp_overflow;
 
-    always @(*) begin
-        if (add | addi 
-        |sub) begin
-            if (alu_exp_overflow) begin
-                IntegerOverflow <= 1'b1;
-            end 
-        end
-        else begin
-            IntegerOverflow <= 1'b0;
-        end
-    end
     // exception end
 
     // decode part
@@ -474,4 +463,19 @@ module mips( clk, rst,
         end
     end
     // dm end
+
+    // exp part
+    always @(*) begin
+        if (add | addi 
+        |sub) begin
+            if (alu_exp_overflow) begin
+                IntegerOverflow <= 1'b1;
+            end 
+        end
+        else begin
+            IntegerOverflow <= 1'b0;
+        end
+    end
+
+    // exp end
 endmodule

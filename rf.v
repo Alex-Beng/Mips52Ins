@@ -17,8 +17,8 @@ module rf( clk, rst,
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             rg_fl[0] = 0;
-            rg_fl[1] = 0'h8000_0000;
-            rg_fl[2] = 0'h8000_0000;
+            rg_fl[1] = 0;
+            rg_fl[2] = 0;
             rg_fl[3] = 0;
             rg_fl[4] = 0;
             rg_fl[5] = 0;
