@@ -22,6 +22,7 @@ module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
             2'b00 : d_out <= op_out[31:0];
             2'b01 : d_out <= op_out[31:0];
             2'b10 : d_out <= data1|data2;
+            2'b11 : d_out <= (op1 < op2)?1:0;
             default: d_out <= 0;
         endcase
     end

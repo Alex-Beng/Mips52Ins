@@ -108,8 +108,9 @@ module mips( clk, rst,
                 Fetch :  state <= Decode;
                 Decode: begin
                     if ( add | addi | addu | addiu
-                    |    sub 
-                    |    subu | ori) begin
+                    |    sub | subu 
+                    |    slt 
+                    |    ori) begin
                         state <= AluExe;
                     end
                     else if (lw | sw) begin
@@ -262,7 +263,7 @@ module mips( clk, rst,
     
     always @(*) begin
     // alu_op
-    // 0+ 1-  2|
+    // 0-plus 1-minus  2-or 3-compare(op1<op2高有效)
         if (state == AluExe) begin
             if (ori) begin
                 alu_op <= 2'b10;
@@ -272,6 +273,9 @@ module mips( clk, rst,
             end
             else if (sub | subu) begin
                 alu_op <= 2'b01;
+            end
+            else if (slt) begin
+                alu_op <= 2'b11;
             end
         end
         else if (state == DmExe) begin
