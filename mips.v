@@ -109,7 +109,7 @@ module mips( clk, rst,
                 Decode: begin
                     if ( add | addi | addu | addiu
                     |    sub | subu 
-                    |    slt 
+                    |    slt | slti
                     |    ori) begin
                         state <= AluExe;
                     end
@@ -210,7 +210,9 @@ module mips( clk, rst,
             alu_op2_sel <= 1'b1;
         end
         else if (state == AluExe) begin
-            if (ori | addi | addiu) begin
+            if (addi | addiu 
+            |   slti 
+            |   ori ) begin
                 alu_op2_sel <= 1'b1;
             end
             else begin
@@ -229,7 +231,9 @@ module mips( clk, rst,
             rf_wr_addr_sel <= 2'b10;
         end
         else if (state == AluWrRf) begin
-            if (ori | addi | addiu) begin
+            if (addi | addiu
+            |   slti
+            |   ori) begin
                 rf_wr_addr_sel <= 2'b01;
             end
             else begin
@@ -263,7 +267,7 @@ module mips( clk, rst,
     
     always @(*) begin
     // alu_op
-    // 0-plus 1-minus  2-or 3-compare(op1<op2高有效)
+    // 0-plus 1-minus  2-or 3-sign-compare(op1<op2高有效)
         if (state == AluExe) begin
             if (ori) begin
                 alu_op <= 2'b10;
@@ -274,7 +278,7 @@ module mips( clk, rst,
             else if (sub | subu) begin
                 alu_op <= 2'b01;
             end
-            else if (slt) begin
+            else if (slt | slti) begin
                 alu_op <= 2'b11;
             end
         end
