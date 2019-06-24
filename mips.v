@@ -222,6 +222,9 @@ module mips( clk, rst,
                 alu_op2_sel <= 1'b0;
             end
         end
+        else if (state == BeqExe) begin
+            alu_op2_sel <= 1'b0;
+        end
     end
     
     always @(*) begin   
