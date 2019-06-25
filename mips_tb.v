@@ -6,7 +6,7 @@ module mips_tb();
     );
     
     initial begin
-        $readmemh( "D:\\Alex_Beng\\code\\verilog\\MultiCycle-52ins\\code.txt" , U_MIPS.U_IM.ins_mem ) ;
+        $readmemh( "D:\\78things\\code.txt" , U_MIPS.U_IM.ins_mem ) ;
         // $monitor("PC = 0x%8X, IR = 0x%8X", U_MIPS.U_PC.PC, U_MIPS.instr ); 
         clk = 1 ;
         rst = 0 ;

@@ -113,7 +113,8 @@ module mips( clk, rst,
                     |    slt  | slti  | sltu | sltiu
                     |    annd | anndi 
                     |    noor 
-                    |    oor  | ori) begin
+                    |    oor  | ori
+                    |    xoor | xori) begin
                         state <= AluExe;
                     end
                     else if (lui) begin
@@ -213,6 +214,7 @@ module mips( clk, rst,
     end
     
     always @(*) begin
+    // alu_op2_sel
     // 1-立即数 0-寄存器data2
         if (state == DmExe) begin
             alu_op2_sel <= 1'b1;
@@ -221,7 +223,8 @@ module mips( clk, rst,
             if (addi  | addiu 
             |   slti  | sltiu
             |   anndi
-            |   ori ) begin
+            |   ori 
+            |   xori) begin
                 alu_op2_sel <= 1'b1;
             end
             else begin
@@ -244,7 +247,8 @@ module mips( clk, rst,
             |   slti  | sltiu
             |   anndi
             |   lui
-            |   ori) begin
+            |   ori
+            |   xori) begin
                 rf_wr_addr_sel <= 2'b01;
             end
             else begin
@@ -286,10 +290,7 @@ module mips( clk, rst,
     // 5-and
     // 6-nor
         if (state == AluExe) begin
-            if (oor | ori) begin
-                alu_op <= 3'b010;
-            end
-            else if (add | addu | addi | addiu) begin
+            if (add | addu | addi | addiu) begin
                 alu_op <= 3'b000;
             end
             else if (sub | subu) begin
@@ -306,6 +307,12 @@ module mips( clk, rst,
             end
             else if (noor) begin
                 alu_op <= 3'b110;
+            end
+            else if (oor | ori) begin
+                alu_op <= 3'b010;
+            end
+            else if (xoor | xori) begin
+                alu_op <= 3'b111;
             end
         end
         else if (state == DmExe) begin
@@ -335,10 +342,12 @@ module mips( clk, rst,
 
     always @(*) begin
     // ext_op
-    // 0->unsign ext 1->sign ext 
+    // 0->0-head ext 1->sign ext 
     // 2->0-tail ext
         if (state == AluExe) begin
-            if (anndi | ori) begin
+            if (anndi 
+            |   ori 
+            |   xori) begin
                 ext_op <= 2'b00;
             end
             else begin
