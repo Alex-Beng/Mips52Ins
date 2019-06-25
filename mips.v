@@ -98,7 +98,9 @@ module mips( clk, rst,
                 DmWrRf  = 4'b0111,
                 BeqExe  = 4'b1000,
                 JalExe  = 4'b1001,
-                LuiWrRf = 4'b1010;
+                LuiWrRf = 4'b1010,
+                SuExe   = 4'b1011,
+                SuWrRf  = 4'b1100;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -129,12 +131,17 @@ module mips( clk, rst,
                     else if (jal) begin
                         state <= JalExe;
                     end
+                    else if (sllv) begin
+                        state <= SuExe;
+                    end
                     else begin
                         state <= Fetch;
                     end
                 end
                 AluExe  : state <= AluWrRf;
                 AluWrRf : state <= Fetch;
+                SuExe   : state <= SuWrRf;
+                SuWrRf  : state <= Fetch;
                 LuiWrRf : state <= Fetch;
                 DmExe   : begin
                     if (sw) begin
@@ -167,8 +174,9 @@ module mips( clk, rst,
     reg dm_wr;                  // 数据存储器写使能
     reg alu_op2_sel;            // alu第二个操作数前的mux控制信号
     reg [1:0] rf_wr_addr_sel;   // rf的写地址前的mux控制信号
-    reg [1:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
+    reg [2:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
     reg [2:0] alu_op;           // alu计算的控制信号
+    reg [1:0] su_op;            // su计算的控制信号
     reg [1:0] npc_op;           // npc计算的控制信号
     reg [1:0] ext_op;           // ext计算的控制信号
 
@@ -176,7 +184,8 @@ module mips( clk, rst,
         if (state == JalExe 
         ||  state == AluWrRf
         ||  state == DmWrRf
-        ||  state == LuiWrRf) begin
+        ||  state == LuiWrRf
+        ||  state == SuWrRf) begin
             rf_wr <= 1'b1;
         end
         else begin
@@ -258,6 +267,9 @@ module mips( clk, rst,
         else if (state == DmWrRf) begin
             rf_wr_addr_sel <= 2'b01;
         end
+        else if (state == SuWrRf) begin
+            rf_wr_addr_sel <= 2'b00;
+        end
         else begin
             rf_wr_addr_sel <= 2'bxx;
         end
@@ -266,20 +278,24 @@ module mips( clk, rst,
     always @(*) begin
     // rf_wr_data_sel
     // 0->alu_dout 1->dm_dout 2->pc 3->imm_ext32
+    // 4->su_dout
         if (state == AluWrRf) begin
-            rf_wr_data_sel <= 2'b00;
+            rf_wr_data_sel <= 3'b000;
         end
         else if (state == DmWrRf) begin
-            rf_wr_data_sel <= 2'b01;
+            rf_wr_data_sel <= 3'b001;
         end
         else if (state == JalExe) begin
-            rf_wr_data_sel <= 2'b10;
+            rf_wr_data_sel <= 3'b010;
         end
         else if (state == LuiWrRf) begin
-            rf_wr_data_sel <= 2'b11;
+            rf_wr_data_sel <= 3'b011;
+        end
+        else if (state == SuWrRf) begin
+            rf_wr_data_sel <= 3'b100;
         end
         else begin
-            rf_wr_data_sel <= 2'bxx;
+            rf_wr_data_sel <= 3'bxxx;
         end
     end
     
@@ -323,6 +339,18 @@ module mips( clk, rst,
         end
         else begin
             alu_op <= 3'bxxx;
+        end
+    end
+
+    always @(*) begin
+    // su_op
+    // 0-> 逻辑左
+    // 1-> 算术右
+    // 2-> 逻辑右
+        if (state == SuExe) begin
+            if (sllv) begin
+                su_op <= 2'b00;
+            end
         end
     end
 
@@ -401,6 +429,7 @@ module mips( clk, rst,
     // rf part
     reg [31:0] dm_dout_reg;     // dm 数据寄存器
     reg [31:0] alu_dout_reg;    // alu 数据寄存器
+    reg [31:0] su_dout_reg;
     
     reg [4:0]   rf_wr_addr;      
     reg [31:0]  rf_wr_data;
@@ -422,17 +451,20 @@ module mips( clk, rst,
 
         // mux before rf data 
         always @(*) begin
-            if (rf_wr_data_sel == 2'b00) begin
+            if (rf_wr_data_sel == 3'b000) begin
                 rf_wr_data <= alu_dout_reg;
             end
-            else if (rf_wr_data_sel == 2'b01) begin
+            else if (rf_wr_data_sel == 3'b001) begin
                 rf_wr_data <= dm_dout_reg;
             end
-            else if (rf_wr_data_sel == 2'b10) begin
+            else if (rf_wr_data_sel == 3'b010) begin
                 rf_wr_data <= pc;
             end
-            else if (rf_wr_data_sel == 2'b11) begin
+            else if (rf_wr_data_sel == 3'b011) begin
                 rf_wr_data <= imm_ext32;
+            end
+            else if (rf_wr_data_sel == 3'b100) begin
+                rf_wr_data <= su_dout_reg;
             end
         end
         // mux before rf data end
@@ -496,6 +528,24 @@ module mips( clk, rst,
         end
     end
     // alu end
+
+    // su part
+    wire [4:0]  s_bits = rf_rd_data1_reg[4:0]|ins[10:6];
+    wire [31:0] su_dout;
+
+    su U_SU(
+        .d_in(rf_rd_data2_reg), .s(s_bits), .su_op(su_op), .d_out(su_dout)
+    );
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            su_dout_reg <= 0;
+        end
+        else begin
+            su_dout_reg <= su_dout;
+        end
+    end
+    // su end
 
     // ext part
     ext U_EXT(

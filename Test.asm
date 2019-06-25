@@ -5,6 +5,9 @@
 # Settings -> Memory Configuration -> Compact, Data at address 0
 
 .text
+	ori $1, $0, 0x2
+	ori $2, $0, 0x78
+	sllv $7, $2, $1
 	lui $2, 100
 	xori $7, $2, 100
 	ori $2, $0, 0x1234
