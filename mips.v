@@ -107,10 +107,10 @@ module mips( clk, rst,
             case (state)
                 Fetch :  state <= Decode;
                 Decode: begin
-                    if ( add  | addi | addu | addiu
+                    if ( add  | addi  | addu | addiu
                     |    sub  | subu 
-                    |    slt  | slti | sltu | sltiu
-                    |    annd 
+                    |    slt  | slti  | sltu | sltiu
+                    |    annd | anndi 
                     |    ori) begin
                         state <= AluExe;
                     end
@@ -211,8 +211,9 @@ module mips( clk, rst,
             alu_op2_sel <= 1'b1;
         end
         else if (state == AluExe) begin
-            if (addi | addiu 
-            |   slti | sltiu
+            if (addi  | addiu 
+            |   slti  | sltiu
+            |   anndi
             |   ori ) begin
                 alu_op2_sel <= 1'b1;
             end
@@ -232,8 +233,9 @@ module mips( clk, rst,
             rf_wr_addr_sel <= 2'b10;
         end
         else if (state == AluWrRf) begin
-            if (addi | addiu
-            |   slti | sltiu
+            if (addi  | addiu
+            |   slti  | sltiu
+            |   anndi
             |   ori) begin
                 rf_wr_addr_sel <= 2'b01;
             end
@@ -287,7 +289,7 @@ module mips( clk, rst,
             else if (sltu | sltiu) begin
                 alu_op <= 3'b100; 
             end
-            else if (annd) begin
+            else if (annd | anndi) begin
                 alu_op <= 3'b101;
             end
         end
@@ -320,7 +322,12 @@ module mips( clk, rst,
     // ext_op
     // 1-sign ext 0-unsign ext
         if (state == AluExe) begin
-            ext_op <= 1'b1;
+            if (anndi) begin
+                ext_op <= 1'b0;
+            end
+            else begin
+                ext_op <= 1'b1;
+            end
         end
     end
     // contral signal end
