@@ -113,7 +113,7 @@ module mips( clk, rst,
                     |    slt  | slti  | sltu | sltiu
                     |    annd | anndi 
                     |    noor 
-                    |    ori) begin
+                    |    oor  | ori) begin
                         state <= AluExe;
                     end
                     else if (lui) begin
@@ -286,7 +286,7 @@ module mips( clk, rst,
     // 5-and
     // 6-nor
         if (state == AluExe) begin
-            if (ori) begin
+            if (oor | ori) begin
                 alu_op <= 3'b010;
             end
             else if (add | addu | addi | addiu) begin
@@ -338,7 +338,7 @@ module mips( clk, rst,
     // 0->unsign ext 1->sign ext 
     // 2->0-tail ext
         if (state == AluExe) begin
-            if (anndi) begin
+            if (anndi | ori) begin
                 ext_op <= 2'b00;
             end
             else begin
