@@ -24,6 +24,7 @@ module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
             3'b010 : d_out <= data1|data2;
             3'b011 : d_out <= ($signed(op1) < $signed(op2))?1:0;
             3'b100 : d_out <= (op1 < op2)?1:0;
+            3'b101 : d_out <= op1&op2;
             default: d_out <= 0;
         endcase
     end
@@ -31,8 +32,8 @@ module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
     assign zero_flag = (data1==data2);
 
     always @(*) begin
-        if (alu_op == 2'b00
-        |   alu_op == 2'b01) begin
+        if (alu_op == 3'b000
+        |   alu_op == 3'b001) begin
             EXP_overflow <= (op_out[32]^op_out[31]);
         end
         else begin
