@@ -88,19 +88,19 @@ module mips( clk, rst,
     // fsm part
     reg [3:0] state;
 
-    parameter   Fetch   = 4'b0000,
-                Decode  = 4'b0001,
-                AluExe  = 4'b0010,
-                AluWrRf = 4'b0011,
-                DmExe   = 4'b0100,
-                DmSw    = 4'b0101,
-                DmLw    = 4'b0110,
-                DmWrRf  = 4'b0111,
-                BeqExe  = 4'b1000,
-                JalExe  = 4'b1001,
-                LuiWrRf = 4'b1010,
-                SuExe   = 4'b1011,
-                SuWrRf  = 4'b1100;
+    parameter   Fetch    = 4'b0000,
+                Decode   = 4'b0001,
+                AluExe   = 4'b0010,
+                AluWrRf  = 4'b0011,
+                DmExe    = 4'b0100,
+                DmSw     = 4'b0101,
+                DmLw     = 4'b0110,
+                DmWrRf   = 4'b0111,
+                BtypeExe = 4'b1000,
+                JalExe   = 4'b1001,
+                LuiWrRf  = 4'b1010,
+                SuExe    = 4'b1011,
+                SuWrRf   = 4'b1100;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -126,7 +126,7 @@ module mips( clk, rst,
                         state <= DmExe;
                     end
                     else if (beq) begin
-                        state <= BeqExe;
+                        state <= BtypeExe;
                     end
                     else if (jal) begin
                         state <= JalExe;
@@ -156,7 +156,7 @@ module mips( clk, rst,
                         state <= Fetch;
                     end
                 end
-                BeqExe : state <= Fetch;
+                BtypeExe : state <= Fetch;
                 JalExe : state <= Fetch;
                 DmSw   : state <= Fetch;
                 DmLw   : state <= DmWrRf;
@@ -168,6 +168,7 @@ module mips( clk, rst,
     // fsm end
 
     // control signal part
+    wire [31:0] alu_dout;       // alu输出信号
     wire alu_zero_flag;         // alu两个op相等flag
 
     reg rf_wr;                  // 寄存器写使能
@@ -197,10 +198,19 @@ module mips( clk, rst,
 
     always @(*) begin
         if (state == JalExe
-        ||  state == Fetch
-        ||  (state == BeqExe && alu_zero_flag)) begin
+        ||  state == BtypeExe
+        ||  state == DmSw
+        ||  state == DmWrRf
+        ||  state == AluWrRf
+        ||  state == SuWrRf
+        ||  state == LuiWrRf) begin
             pc_wr <= 1'b1;
         end
+        // else if (state == BtypeExe) begin
+        //     // if (beq && (alu_dout==0)) begin
+        //     pc_wr <= 1'b1;
+        //     // end
+        // end
         else begin
             pc_wr <= 1'b0;
         end
@@ -242,7 +252,7 @@ module mips( clk, rst,
                 alu_op2_sel <= 1'b0;
             end
         end
-        else if (state == BeqExe) begin
+        else if (state == BtypeExe) begin
             alu_op2_sel <= 1'b0;
         end
     end
@@ -336,7 +346,7 @@ module mips( clk, rst,
         else if (state == DmExe) begin
             alu_op <= 3'b000;
         end
-        else if (state == BeqExe) begin
+        else if (state == BtypeExe) begin
             alu_op <= 3'b001;
         end
         else begin
@@ -365,8 +375,13 @@ module mips( clk, rst,
     always @(*) begin
     // npc_op
     // 0-plus four 1-beq 2-jal
-        if (state == BeqExe && alu_zero_flag) begin
-            npc_op <= 2'b01;
+        if (state == BtypeExe) begin
+            if (beq && (alu_dout==0)) begin
+                npc_op <= 2'b01;
+            end
+            else begin
+                npc_op <= 2'b00;
+            end
         end
         else if (state == JalExe) begin
             npc_op <= 2'b10;
@@ -390,7 +405,12 @@ module mips( clk, rst,
                 ext_op <= 2'b01;
             end
         end
-        if (state == LuiWrRf) begin
+        else if (state == BtypeExe) begin
+            if (beq) begin
+                ext_op <= 2'b01;
+            end
+        end
+        else if (state == LuiWrRf) begin
             ext_op <= 2'b10;
         end
     end
@@ -508,7 +528,6 @@ module mips( clk, rst,
     // alu part
     reg [31:0] alu_op1;
     reg [31:0] alu_op2;
-    wire [31:0] alu_dout;
 
     always @(*) begin
         alu_op1 <= rf_rd_data1_reg;

@@ -8,7 +8,7 @@ module npc( pc, d_ins26, d_ext32, npc_op, npc );
     always @(*) begin
         case (npc_op)
             2'b00: npc <= pc + 4;
-            2'b01: npc <= pc + {d_ext32[29:0], 2'b00};
+            2'b01: npc <= pc + 4 + {d_ext32[29:0], 2'b00};
             2'b10: npc <= {pc[31:28], d_ins26, 2'b00};
         endcase
     end
