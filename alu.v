@@ -25,6 +25,7 @@ module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
             3'b011 : d_out <= ($signed(op1) < $signed(op2))?1:0;
             3'b100 : d_out <= (op1 < op2)?1:0;
             3'b101 : d_out <= op1&op2;
+            3'b110 : d_out <= ~(op1|op2);
             default: d_out <= 0;
         endcase
     end

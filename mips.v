@@ -112,6 +112,7 @@ module mips( clk, rst,
                     |    sub  | subu 
                     |    slt  | slti  | sltu | sltiu
                     |    annd | anndi 
+                    |    noor 
                     |    ori) begin
                         state <= AluExe;
                     end
@@ -283,6 +284,7 @@ module mips( clk, rst,
     // 0-plus 1-minus  2-or 3-sign-compare(op1<op2高有效)
     // 4-unsign-compare 
     // 5-and
+    // 6-nor
         if (state == AluExe) begin
             if (ori) begin
                 alu_op <= 3'b010;
@@ -301,6 +303,9 @@ module mips( clk, rst,
             end
             else if (annd | anndi) begin
                 alu_op <= 3'b101;
+            end
+            else if (noor) begin
+                alu_op <= 3'b110;
             end
         end
         else if (state == DmExe) begin
