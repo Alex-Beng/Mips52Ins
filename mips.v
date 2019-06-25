@@ -131,7 +131,7 @@ module mips( clk, rst,
                     else if (jal) begin
                         state <= JalExe;
                     end
-                    else if (sllv) begin
+                    else if (sllv | sll) begin
                         state <= SuExe;
                     end
                     else begin
@@ -348,7 +348,7 @@ module mips( clk, rst,
     // 1-> 算术右
     // 2-> 逻辑右
         if (state == SuExe) begin
-            if (sllv) begin
+            if (sllv | sll) begin
                 su_op <= 2'b00;
             end
         end
