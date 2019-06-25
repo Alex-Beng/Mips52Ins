@@ -131,7 +131,9 @@ module mips( clk, rst,
                     else if (jal) begin
                         state <= JalExe;
                     end
-                    else if (sllv | sll) begin
+                    else if (sllv | sll
+                    |        srav | sra
+                    |        srlv | srl) begin
                         state <= SuExe;
                     end
                     else begin
@@ -350,6 +352,12 @@ module mips( clk, rst,
         if (state == SuExe) begin
             if (sllv | sll) begin
                 su_op <= 2'b00;
+            end
+            else if (srav | sra) begin
+                su_op <= 2'b01;
+            end
+            else if (srlv | srl) begin
+                su_op <= 2'b10;
             end
         end
     end
