@@ -7,8 +7,10 @@
 .text
 	
 	ori $1, $0, 0x2
+	bltz $1, ya
 	ori $2, $0, 0x2
 	addi $3, $0, -0x2
+	bltz $3, ya
 	#beq $1, $2, loo2
 	# bgtz $1, yaya
 

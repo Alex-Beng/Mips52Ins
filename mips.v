@@ -261,7 +261,7 @@ module mips( clk, rst,
                 alu_op2_sel <= 2'b00;
             end
             else if (bgez | bgtz
-            |        blez) begin
+            |        blez | bltz) begin
                 alu_op2_sel <= 2'b10;
             end
         end
@@ -364,7 +364,7 @@ module mips( clk, rst,
             if (beq | bne) begin
                 alu_op <= 4'b0001;
             end
-            else if (bgez) begin
+            else if (bgez | bltz) begin
                 alu_op <= 4'b0011;
             end
             else if (bgtz | blez) begin
@@ -411,6 +411,9 @@ module mips( clk, rst,
                 npc_op <= 2'b01;
             end
             else if (blez && (alu_dout==0)) begin
+                npc_op <= 2'b01;
+            end
+            else if (bltz && (alu_dout!=0)) begin
                 npc_op <= 2'b01;
             end
             else begin
