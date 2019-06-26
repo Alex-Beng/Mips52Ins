@@ -57,7 +57,7 @@ module mips( clk, rst,
 
     wire beq    = ( ins[31:26] == 6'b00_0100)? 1:0;
     wire bne    = ( ins[31:26] == 6'b00_0101)? 1:0;
-    wire bnez   = ( ins[31:26] == 6'b00_0001 && ins[20:16] == 5'b00_001)? 1:0;
+    wire bgez   = ( ins[31:26] == 6'b00_0001 && ins[20:16] == 5'b00_001)? 1:0;
     wire bgtz   = ( ins[31:26] == 6'b00_0111 && ins[20:16] == 5'b00_000)? 1:0;
     wire blez   = ( ins[31:26] == 6'b00_0110 && ins[20:16] == 5'b00_000)? 1:0;
     wire bltz   = ( ins[31:26] == 6'b00_0001 && ins[20:16] == 5'b00_000)? 1:0;
@@ -125,7 +125,10 @@ module mips( clk, rst,
                     else if (lw | sw) begin
                         state <= DmExe;
                     end
-                    else if (beq | bne) begin
+                    else if (beq    | bne
+                    |        bgez   | bgtz
+                    |        blez   | bltz
+                    |        bgezal | bltzal) begin
                         state <= BtypeExe;
                     end
                     else if (jal) begin
@@ -174,7 +177,7 @@ module mips( clk, rst,
     reg pc_wr;                  // 程序计数器写使能
     reg ir_wr;                  // 指令寄存器写使能
     reg dm_wr;                  // 数据存储器写使能
-    reg alu_op2_sel;            // alu第二个操作数前的mux控制信号
+    reg [1:0] alu_op2_sel;      // alu第二个操作数前的mux控制信号
     reg [1:0] rf_wr_addr_sel;   // rf的写地址前的mux控制信号
     reg [2:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
     reg [2:0] alu_op;           // alu计算的控制信号
@@ -235,9 +238,11 @@ module mips( clk, rst,
     
     always @(*) begin
     // alu_op2_sel
-    // 1-立即数 0-寄存器data2
+    // 0->寄存器data2 
+    // 1->立即数
+    // 2->0
         if (state == DmExe) begin
-            alu_op2_sel <= 1'b1;
+            alu_op2_sel <= 2'b01;
         end
         else if (state == AluExe) begin
             if (addi  | addiu 
@@ -245,14 +250,19 @@ module mips( clk, rst,
             |   anndi
             |   ori 
             |   xori) begin
-                alu_op2_sel <= 1'b1;
+                alu_op2_sel <= 2'b01;
             end
             else begin
-                alu_op2_sel <= 1'b0;
+                alu_op2_sel <= 2'b00;
             end
         end
         else if (state == BtypeExe) begin
-            alu_op2_sel <= 1'b0;
+            if (beq | bne) begin
+                alu_op2_sel <= 2'b00;
+            end
+            else if (bgez) begin
+                alu_op2_sel <= 2'b10;
+            end
         end
     end
     
@@ -349,7 +359,9 @@ module mips( clk, rst,
             if (beq | bne) begin
                 alu_op <= 3'b001;
             end
-            
+            else if (bgez) begin
+                alu_op <= 3'b011;
+            end
         end
         else begin
             alu_op <= 3'bxxx;
@@ -382,6 +394,9 @@ module mips( clk, rst,
                 npc_op <= 2'b01;
             end
             else if (bne && (alu_dout!=0)) begin
+                npc_op <= 2'b01;
+            end
+            else if (bgez && (alu_dout==0)) begin
                 npc_op <= 2'b01;
             end
             else begin
@@ -537,12 +552,17 @@ module mips( clk, rst,
     end
 
     always @(*) begin
-        if (alu_op2_sel == 1'b1) begin
-            alu_op2 <= imm_ext32;
-        end
-        else begin
-            alu_op2 <= rf_rd_data2_reg;
-        end
+        case(alu_op2_sel) 
+            2'b00 : alu_op2 <= rf_rd_data2_reg;
+            2'b01 : alu_op2 <= imm_ext32;
+            2'b10 : alu_op2 <= 32'h00_000_000;
+        endcase
+        // if (alu_op2_sel == 1'b1) begin
+        //     alu_op2 <= imm_ext32;
+        // end
+        // else begin
+        //     alu_op2 <= rf_rd_data2_reg;
+        // end
     end
 
     alu U_ALU(

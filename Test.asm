@@ -8,8 +8,12 @@
 	
 	ori $1, $0, 0x2
 	ori $2, $0, 0x2
-	beq $1, $2, loo2
+	addi $3, $0, -0x2
+	#beq $1, $2, loo2
+ya: 
+	bgez $1, loo2
 loo2:
+	bgez $3, ya	
 	bne $1, $2, loo2
 	bne $1, $0, loo2
 	
