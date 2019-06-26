@@ -1,7 +1,7 @@
 module alu( data1, data2, alu_op, d_out, EXP_overflow );
     input [31:0] data1;
     input [31:0] data2;
-    input [2:0]  alu_op;
+    input [3:0]  alu_op;
     output reg [31:0] d_out;
     output reg EXP_overflow;
 
@@ -11,29 +11,30 @@ module alu( data1, data2, alu_op, d_out, EXP_overflow );
 
     always @(*) begin
         case(alu_op)
-            3'b000 : op_out <= op1+op2;
-            3'b001 : op_out <= op1-op2;
+            4'b0000 : op_out <= op1+op2;
+            4'b0001 : op_out <= op1-op2;
         endcase
     end
 
     always @(*) begin
         case(alu_op)
-            3'b000 : d_out <= op_out[31:0];
-            3'b001 : d_out <= op_out[31:0];
-            3'b010 : d_out <= data1|data2;
-            3'b011 : d_out <= ($signed(data1) < $signed(data2))?1:0;
-            3'b100 : d_out <= (data1 < data2)?1:0;
-            3'b101 : d_out <= data1&data2;
-            3'b110 : d_out <= ~(data1|data2);
-            3'b111 : d_out <= data1^data2;
+            4'b0000 : d_out <= op_out[31:0];
+            4'b0001 : d_out <= op_out[31:0];
+            4'b0010 : d_out <= data1|data2;
+            4'b0011 : d_out <= ($signed(data1) < $signed(data2))?1:0;
+            4'b0100 : d_out <= (data1 < data2)?1:0;
+            4'b0101 : d_out <= data1&data2;
+            4'b0110 : d_out <= ~(data1|data2);
+            4'b0111 : d_out <= data1^data2;
+            4'b1000 : d_out <= ($signed(data1) > $signed(data2))?1:0;
             default: d_out <= 0;
         endcase
     end
 
 
     always @(*) begin
-        if (alu_op == 3'b000
-        |   alu_op == 3'b001) begin
+        if (alu_op == 4'b0000
+        |   alu_op == 4'b0001) begin
             EXP_overflow <= (op_out[32]^op_out[31]);
         end
         else begin

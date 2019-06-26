@@ -180,7 +180,7 @@ module mips( clk, rst,
     reg [1:0] alu_op2_sel;      // alu第二个操作数前的mux控制信号
     reg [1:0] rf_wr_addr_sel;   // rf的写地址前的mux控制信号
     reg [2:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
-    reg [2:0] alu_op;           // alu计算的控制信号
+    reg [3:0] alu_op;           // alu计算的控制信号
     reg [1:0] su_op;            // su计算的控制信号
     reg [1:0] npc_op;           // npc计算的控制信号
     reg [1:0] ext_op;           // ext计算的控制信号
@@ -260,7 +260,7 @@ module mips( clk, rst,
             if (beq | bne) begin
                 alu_op2_sel <= 2'b00;
             end
-            else if (bgez) begin
+            else if (bgez | bgtz) begin
                 alu_op2_sel <= 2'b10;
             end
         end
@@ -322,49 +322,56 @@ module mips( clk, rst,
     
     always @(*) begin
     // alu_op
-    // 0-plus 1-minus  2-or 3-sign-compare(op1<op2高有效)
-    // 4-unsign-compare 
-    // 5-and
-    // 6-nor
+    // 0->plus 1-minus  
+    // 2->or 
+    // 3->sign-compare(op1<op2高有效)   d1<d2
+    // 4->unsign-compare                d1<d2
+    // 5->and
+    // 6->nor
+    // 7->^
+    // 8->sign-comp d1>d2
         if (state == AluExe) begin
             if (add | addu | addi | addiu) begin
-                alu_op <= 3'b000;
+                alu_op <= 4'b0000;
             end
             else if (sub | subu) begin
-                alu_op <= 3'b001;
+                alu_op <= 4'b0001;
             end
             else if (slt | slti) begin
-                alu_op <= 3'b011;
+                alu_op <= 4'b0011;
             end
             else if (sltu | sltiu) begin
-                alu_op <= 3'b100; 
+                alu_op <= 4'b0100; 
             end
             else if (annd | anndi) begin
-                alu_op <= 3'b101;
+                alu_op <= 4'b0101;
             end
             else if (noor) begin
-                alu_op <= 3'b110;
+                alu_op <= 4'b0110;
             end
             else if (oor | ori) begin
-                alu_op <= 3'b010;
+                alu_op <= 4'b0010;
             end
             else if (xoor | xori) begin
-                alu_op <= 3'b111;
+                alu_op <= 4'b0111;
             end
         end
         else if (state == DmExe) begin
-            alu_op <= 3'b000;
+            alu_op <= 4'b0000;
         end
         else if (state == BtypeExe) begin
             if (beq | bne) begin
-                alu_op <= 3'b001;
+                alu_op <= 4'b0001;
             end
             else if (bgez) begin
-                alu_op <= 3'b011;
+                alu_op <= 4'b0011;
+            end
+            else if (bgtz) begin
+                alu_op <= 4'b1000;
             end
         end
         else begin
-            alu_op <= 3'bxxx;
+            alu_op <= 4'bxxxx;
         end
     end
 
@@ -397,6 +404,9 @@ module mips( clk, rst,
                 npc_op <= 2'b01;
             end
             else if (bgez && (alu_dout==0)) begin
+                npc_op <= 2'b01;
+            end
+            else if (bgtz && (alu_dout!=0)) begin
                 npc_op <= 2'b01;
             end
             else begin

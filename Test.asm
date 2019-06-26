@@ -10,8 +10,13 @@
 	ori $2, $0, 0x2
 	addi $3, $0, -0x2
 	#beq $1, $2, loo2
+	bgtz $1, yaya
+
+	
 ya: 
 	bgez $1, loo2
+yaya:
+	bgtz $0, yaya
 loo2:
 	bgez $3, ya	
 	bne $1, $2, loo2
