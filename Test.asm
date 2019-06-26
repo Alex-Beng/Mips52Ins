@@ -5,12 +5,13 @@
 # Settings -> Memory Configuration -> Compact, Data at address 0
 
 .text
-
+	
 	ori $1, $0, 0x2
 	ori $2, $0, 0x2
-loop2:
-	# beq $1, $2, loop2
-	
+	beq $1, $2, loo2
+loo2:
+	bne $1, $2, loo2
+	bne $1, $0, loo2
 	
 	sllv $7, $2, $1
 	sll $7, $2, 4 

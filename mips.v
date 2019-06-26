@@ -125,7 +125,7 @@ module mips( clk, rst,
                     else if (lw | sw) begin
                         state <= DmExe;
                     end
-                    else if (beq) begin
+                    else if (beq | bne) begin
                         state <= BtypeExe;
                     end
                     else if (jal) begin
@@ -169,7 +169,6 @@ module mips( clk, rst,
 
     // control signal part
     wire [31:0] alu_dout;       // alu输出信号
-    wire alu_zero_flag;         // alu两个op相等flag
 
     reg rf_wr;                  // 寄存器写使能
     reg pc_wr;                  // 程序计数器写使能
@@ -347,7 +346,10 @@ module mips( clk, rst,
             alu_op <= 3'b000;
         end
         else if (state == BtypeExe) begin
-            alu_op <= 3'b001;
+            if (beq | bne) begin
+                alu_op <= 3'b001;
+            end
+            
         end
         else begin
             alu_op <= 3'bxxx;
@@ -379,6 +381,9 @@ module mips( clk, rst,
             if (beq && (alu_dout==0)) begin
                 npc_op <= 2'b01;
             end
+            else if (bne && (alu_dout!=0)) begin
+                npc_op <= 2'b01;
+            end
             else begin
                 npc_op <= 2'b00;
             end
@@ -406,9 +411,7 @@ module mips( clk, rst,
             end
         end
         else if (state == BtypeExe) begin
-            if (beq) begin
                 ext_op <= 2'b01;
-            end
         end
         else if (state == LuiWrRf) begin
             ext_op <= 2'b10;
@@ -543,7 +546,7 @@ module mips( clk, rst,
     end
 
     alu U_ALU(
-        .data1(alu_op1), .data2(alu_op2), .alu_op(alu_op), .d_out(alu_dout), .zero_flag(alu_zero_flag), .EXP_overflow(alu_exp_overflow)
+        .data1(alu_op1), .data2(alu_op2), .alu_op(alu_op), .d_out(alu_dout), .EXP_overflow(alu_exp_overflow)
     );
 
     always @(posedge clk or posedge rst) begin

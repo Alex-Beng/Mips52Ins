@@ -1,9 +1,8 @@
-module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
+module alu( data1, data2, alu_op, d_out, EXP_overflow );
     input [31:0] data1;
     input [31:0] data2;
     input [2:0]  alu_op;
     output reg [31:0] d_out;
-    output zero_flag;
     output reg EXP_overflow;
 
     wire [32:0] op1 = {data1[31], data1};
@@ -31,7 +30,6 @@ module alu( data1, data2, alu_op, d_out, zero_flag, EXP_overflow );
         endcase
     end
 
-    assign zero_flag = (data1==data2);
 
     always @(*) begin
         if (alu_op == 3'b000
