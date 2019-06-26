@@ -195,6 +195,8 @@ module mips( clk, rst,
     reg [1:0] alu_op2_sel;      // alu第二个操作数前的mux控制信号
     reg [1:0] rf_wr_addr_sel;   // rf的写地址前的mux控制信号
     reg [2:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
+    reg [0:0] hi_wr_data_sel;   // hi的写入数据的mux的控制信号
+    reg [0:0] lo_wr_data_sel;   // lo的写入数据的mux的控制信号
     reg [3:0] alu_op;           // alu计算的控制信号
     reg [1:0] su_op;            // su计算的控制信号
     reg [1:0] mdu_op;           // mdu计算的控制信号
@@ -272,6 +274,12 @@ module mips( clk, rst,
         if (state == MdExe) begin
             hi_wr <= 1'b1;
         end
+        else if (state == DtmvWrRf) begin
+            if (mthi) begin
+                hi_wr <= 1'b1;
+            end
+        end
+
         else begin
             hi_wr <= 1'b0;
         end
@@ -280,6 +288,11 @@ module mips( clk, rst,
     always @(*) begin
         if (state == MdExe) begin
             lo_wr <= 1'b1;
+        end
+        else if (state == DtmvWrRf) begin
+            if (mtlo) begin
+                lo_wr <= 1'b1;
+            end
         end
         else begin
             lo_wr <= 1'b0;
@@ -397,6 +410,35 @@ module mips( clk, rst,
             rf_wr_data_sel <= 3'bxxx;
         end
     end
+
+    always @(*) begin
+    // hi_wr_data_sel
+    // 0->mdu_dout
+    // 1->rf[rs]
+        if (state == MdExe) begin
+            hi_wr_data_sel <= 1'b0;
+        end
+        else if (state == DtmvWrRf) begin
+            if (mthi) begin
+                hi_wr_data_sel <= 1'b1;
+            end
+        end
+    end
+
+    always @(*) begin
+    // lo_wr_data_sel
+    // 0->mdu_dout
+    // 1->rf[rs]
+        if (state == MdExe) begin
+            lo_wr_data_sel <= 1'b0;
+        end
+        else if (state == DtmvWrRf) begin
+            if (mtlo) begin
+                lo_wr_data_sel <= 1'b1;
+            end
+        end
+    end
+
     
     always @(*) begin
     // alu_op
@@ -751,7 +793,11 @@ module mips( clk, rst,
             hi <= 0;
         end
         else if (hi_wr) begin
-            hi <= mdu_dout_hi;
+            case (hi_wr_data_sel)
+                1'b0 : hi <= mdu_dout_hi;
+                1'b1 : hi <= rf_rd_data1_reg;
+            endcase
+            // hi <= mdu_dout_hi;
         end
     end
 
@@ -760,7 +806,11 @@ module mips( clk, rst,
             lo <= 0;
         end
         else if (lo_wr) begin
-            lo <= mdu_dout_lo;
+            case (lo_wr_data_sel)
+                1'b0 : lo <= mdu_dout_lo;
+                1'b1 : lo <= rf_rd_data1_reg;
+            endcase
+            // lo <= mdu_dout_lo;
         end
     end
     // mdu end

@@ -11,6 +11,10 @@ begin:
 	div $t1, $t2
 	mfhi $1
 	mflo $1
+	mthi $0
+	mthi $t1
+	mtlo $0
+	mtlo $t2
 	addi $t1, $0, 17
 	addi $t2, $0, -3
 	div $t1, $t2
