@@ -101,7 +101,8 @@ module mips( clk, rst,
                 LuiWrRf  = 4'b1010,
                 SuExe    = 4'b1011,
                 SuWrRf   = 4'b1100,
-                MdExe    = 4'b1101;
+                MdExe    = 4'b1101,
+                DtmvWrRf = 4'b1110;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -145,17 +146,22 @@ module mips( clk, rst,
                     |        mult | multu) begin
                         state <= MdExe;
                     end
+                    else if (mfhi | mflo
+                    |        mthi | mtlo) begin
+                        state <= DtmvWrRf;
+                    end
                     else begin
                         state <= Fetch;
                     end
                 end
-                AluExe  : state <= AluWrRf;
-                AluWrRf : state <= Fetch;
-                SuExe   : state <= SuWrRf;
-                SuWrRf  : state <= Fetch;
-                MdExe   : state <= Fetch;
-                LuiWrRf : state <= Fetch;
-                DmExe   : begin
+                AluExe   : state <= AluWrRf;
+                AluWrRf  : state <= Fetch;
+                SuExe    : state <= SuWrRf;
+                SuWrRf   : state <= Fetch;
+                MdExe    : state <= Fetch;
+                LuiWrRf  : state <= Fetch;
+                DtmvWrRf : state <= Fetch;
+                DmExe    : begin
                     if (sw) begin
                         state <= DmSw;
                     end
@@ -212,6 +218,11 @@ module mips( clk, rst,
                 rf_wr <= 1'b1;
             end
         end
+        else if (state == DtmvWrRf) begin
+            if (mfhi | mflo) begin
+                rf_wr <= 1'b1;
+            end
+        end
         else begin
             rf_wr <= 1'b0;
         end
@@ -225,7 +236,8 @@ module mips( clk, rst,
         ||  state == AluWrRf
         ||  state == SuWrRf
         ||  state == LuiWrRf
-        ||  state == MdExe) begin
+        ||  state == MdExe
+        ||  state == DtmvWrRf) begin
             pc_wr <= 1'b1;
         end
         // else if (state == BtypeExe) begin
@@ -336,6 +348,11 @@ module mips( clk, rst,
                 rf_wr_addr_sel <= 2'b10;
             end
         end
+        else if (state == DtmvWrRf) begin
+            if (mfhi | mflo) begin
+                rf_wr_addr_sel <= 2'b00;
+            end
+        end
         else begin
             rf_wr_addr_sel <= 2'bxx;
         end
@@ -348,6 +365,8 @@ module mips( clk, rst,
     // 3->imm_ext32
     // 4->su_dout
     // 5->pc+4
+    // 6->hi
+    // 7->lo
         if (state == AluWrRf) begin
             rf_wr_data_sel <= 3'b000;
         end
@@ -365,6 +384,14 @@ module mips( clk, rst,
         end
         else if (state == BtypeExe) begin
             rf_wr_data_sel <= 3'b101;
+        end
+        else if (state == DtmvWrRf) begin
+            if (mfhi) begin
+                rf_wr_data_sel <= 3'b110;
+            end
+            else if (mflo) begin
+                rf_wr_data_sel <= 3'b111;
+            end
         end
         else begin
             rf_wr_data_sel <= 3'bxxx;
@@ -577,6 +604,9 @@ module mips( clk, rst,
     reg [31:0] dm_dout_reg;     // dm 数据寄存器
     reg [31:0] alu_dout_reg;    // alu 数据寄存器
     reg [31:0] su_dout_reg;
+
+    reg [31:0] hi;
+    reg [31:0] lo;
     
     reg [4:0]   rf_wr_addr;      
     reg [31:0]  rf_wr_data;
@@ -605,6 +635,8 @@ module mips( clk, rst,
                 3'b011 : rf_wr_data <= imm_ext32;
                 3'b100 : rf_wr_data <= su_dout_reg;
                 3'b101 : rf_wr_data <= pc+4;
+                3'b110 : rf_wr_data <= hi;
+                3'b111 : rf_wr_data <= lo;
             endcase
             // if (rf_wr_data_sel == 3'b000) begin
             //     rf_wr_data <= alu_dout_reg;
@@ -708,8 +740,6 @@ module mips( clk, rst,
     wire [31:0] mdu_dout_hi;
     wire [31:0] mdu_dout_lo;
 
-    reg [31:0] hi;
-    reg [31:0] lo;
     mdu U_MDU(
         .data1(rf_rd_data1_reg), .data2(rf_rd_data2_reg), .mdu_op(mdu_op),
         .d_out_hi(mdu_dout_hi), .d_out_lo(mdu_dout_lo)
@@ -733,8 +763,6 @@ module mips( clk, rst,
             lo <= mdu_dout_lo;
         end
     end
-
-
     // mdu end
 
     // ext part
