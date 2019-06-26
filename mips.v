@@ -97,10 +97,11 @@ module mips( clk, rst,
                 DmLw     = 4'b0110,
                 DmWrRf   = 4'b0111,
                 BtypeExe = 4'b1000,
-                JtypeExe   = 4'b1001,
+                JtypeExe = 4'b1001,
                 LuiWrRf  = 4'b1010,
                 SuExe    = 4'b1011,
-                SuWrRf   = 4'b1100;
+                SuWrRf   = 4'b1100,
+                MdExe    = 4'b1101;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -140,6 +141,10 @@ module mips( clk, rst,
                     |        srlv | srl) begin
                         state <= SuExe;
                     end
+                    else if (div  | divu
+                    |        mult | multu) begin
+                        state <= MdExe;
+                    end
                     else begin
                         state <= Fetch;
                     end
@@ -148,6 +153,7 @@ module mips( clk, rst,
                 AluWrRf : state <= Fetch;
                 SuExe   : state <= SuWrRf;
                 SuWrRf  : state <= Fetch;
+                MdExe   : state <= Fetch;
                 LuiWrRf : state <= Fetch;
                 DmExe   : begin
                     if (sw) begin
@@ -178,11 +184,14 @@ module mips( clk, rst,
     reg pc_wr;                  // 程序计数器写使能
     reg ir_wr;                  // 指令寄存器写使能
     reg dm_wr;                  // 数据存储器写使能
+    reg hi_wr;                  // hi写使能
+    reg lo_wr;                  // lo写使能
     reg [1:0] alu_op2_sel;      // alu第二个操作数前的mux控制信号
     reg [1:0] rf_wr_addr_sel;   // rf的写地址前的mux控制信号
     reg [2:0] rf_wr_data_sel;   // rf的写数据前的mux控制信号
     reg [3:0] alu_op;           // alu计算的控制信号
     reg [1:0] su_op;            // su计算的控制信号
+    reg [1:0] mdu_op;           // mdu计算的控制信号
     reg [1:0] npc_op;           // npc计算的控制信号
     reg [1:0] ext_op;           // ext计算的控制信号
 
@@ -215,7 +224,8 @@ module mips( clk, rst,
         ||  state == DmWrRf
         ||  state == AluWrRf
         ||  state == SuWrRf
-        ||  state == LuiWrRf) begin
+        ||  state == LuiWrRf
+        ||  state == MdExe) begin
             pc_wr <= 1'b1;
         end
         // else if (state == BtypeExe) begin
@@ -243,6 +253,24 @@ module mips( clk, rst,
         end
         else begin
             dm_wr <= 1'b0;
+        end
+    end
+
+    always @(*) begin
+        if (state == MdExe) begin
+            hi_wr <= 1'b1;
+        end
+        else begin
+            hi_wr <= 1'b0;
+        end
+    end
+
+    always @(*) begin
+        if (state == MdExe) begin
+            lo_wr <= 1'b1;
+        end
+        else begin
+            lo_wr <= 1'b0;
         end
     end
     
@@ -413,6 +441,28 @@ module mips( clk, rst,
             end
             else if (srlv | srl) begin
                 su_op <= 2'b10;
+            end
+        end
+    end
+
+    always @(*) begin
+    // mdu_op
+    // 0->div
+    // 1->divu
+    // 2->mult
+    // 3->multu
+        if (state == MdExe) begin
+            if (div) begin
+                mdu_op <= 2'b00;
+            end
+            else if (divu) begin
+                mdu_op <= 2'b01;
+            end
+            else if (mult) begin
+                mdu_op <= 2'b10;
+            end
+            else begin
+                mdu_op <= 2'b11;
             end
         end
     end
@@ -653,6 +703,39 @@ module mips( clk, rst,
         end
     end
     // su end
+
+    // mdu part
+    wire [31:0] mdu_dout_hi;
+    wire [31:0] mdu_dout_lo;
+
+    reg [31:0] hi;
+    reg [31:0] lo;
+    mdu U_MDU(
+        .data1(rf_rd_data1_reg), .data2(rf_rd_data2_reg), .mdu_op(mdu_op),
+        .d_out_hi(mdu_dout_hi), .d_out_lo(mdu_dout_lo)
+    );
+
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            hi <= 0;
+        end
+        else if (hi_wr) begin
+            hi <= mdu_dout_hi;
+        end
+    end
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            lo <= 0;
+        end
+        else if (lo_wr) begin
+            lo <= mdu_dout_lo;
+        end
+    end
+
+
+    // mdu end
 
     // ext part
     ext U_EXT(

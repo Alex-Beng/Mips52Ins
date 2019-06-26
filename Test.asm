@@ -6,6 +6,23 @@
 
 .text
 begin:
+	addi $t1, $0, -17
+	addi $t2, $0, 3
+	div $t1, $t2
+	addi $t1, $0, 17
+	addi $t2, $0, -3
+	div $t1, $t2
+	addi $t1, $0, -17
+	addi $t2, $0, -3
+	div $t1, $t2
+	addi $t1, $0, 17
+	addi $t2, $0, 3
+	div $t1, $t2
+	
+	divu $t1, $t2
+	mult $t1, $t2
+	multu $t1, $t2
+	
 	ori $1, $0, 0x2
 	j yya
 	ori $2, $0, 0x2
