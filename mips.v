@@ -193,6 +193,11 @@ module mips( clk, rst,
         ||  state == SuWrRf) begin
             rf_wr <= 1'b1;
         end
+        else if (state == BtypeExe) begin
+            if (bgezal | bltzal) begin
+                rf_wr <= 1'b1;
+            end
+        end
         else begin
             rf_wr <= 1'b0;
         end
@@ -260,8 +265,9 @@ module mips( clk, rst,
             if (beq | bne) begin
                 alu_op2_sel <= 2'b00;
             end
-            else if (bgez | bgtz
-            |        blez | bltz) begin
+            else if (bgez   | bgtz
+            |        blez   | bltz
+            |        bgezal | bltzal) begin
                 alu_op2_sel <= 2'b10;
             end
         end
@@ -292,6 +298,11 @@ module mips( clk, rst,
         else if (state == SuWrRf) begin
             rf_wr_addr_sel <= 2'b00;
         end
+        else if (state == BtypeExe) begin
+            if (bgezal | bltzal) begin
+                rf_wr_addr_sel <= 2'b10;
+            end
+        end
         else begin
             rf_wr_addr_sel <= 2'bxx;
         end
@@ -299,8 +310,12 @@ module mips( clk, rst,
 
     always @(*) begin
     // rf_wr_data_sel
-    // 0->alu_dout 1->dm_dout 2->pc 3->imm_ext32
+    // 0->alu_dout 
+    // 1->dm_dout 
+    // 2->pc 
+    // 3->imm_ext32
     // 4->su_dout
+    // 5->pc+4
         if (state == AluWrRf) begin
             rf_wr_data_sel <= 3'b000;
         end
@@ -315,6 +330,9 @@ module mips( clk, rst,
         end
         else if (state == SuWrRf) begin
             rf_wr_data_sel <= 3'b100;
+        end
+        else if (state == BtypeExe) begin
+            rf_wr_data_sel <= 3'b101;
         end
         else begin
             rf_wr_data_sel <= 3'bxxx;
@@ -364,10 +382,11 @@ module mips( clk, rst,
             if (beq | bne) begin
                 alu_op <= 4'b0001;
             end
-            else if (bgez | bltz) begin
+            else if (bgez   | bltz 
+            |        bgezal | bltzal) begin
                 alu_op <= 4'b0011;
             end
-            else if (bgtz | blez) begin
+            else if (bgtz | blez ) begin
                 alu_op <= 4'b1000;
             end
         end
@@ -404,7 +423,7 @@ module mips( clk, rst,
             else if (bne && (alu_dout!=0)) begin
                 npc_op <= 2'b01;
             end
-            else if (bgez && (alu_dout==0)) begin
+            else if ((bgez | bgezal) && (alu_dout==0)) begin
                 npc_op <= 2'b01;
             end
             else if (bgtz && (alu_dout!=0)) begin
@@ -413,7 +432,7 @@ module mips( clk, rst,
             else if (blez && (alu_dout==0)) begin
                 npc_op <= 2'b01;
             end
-            else if (bltz && (alu_dout!=0)) begin
+            else if ((bltz | bltzal) && (alu_dout!=0)) begin
                 npc_op <= 2'b01;
             end
             else begin
@@ -514,21 +533,29 @@ module mips( clk, rst,
 
         // mux before rf data 
         always @(*) begin
-            if (rf_wr_data_sel == 3'b000) begin
-                rf_wr_data <= alu_dout_reg;
-            end
-            else if (rf_wr_data_sel == 3'b001) begin
-                rf_wr_data <= dm_dout_reg;
-            end
-            else if (rf_wr_data_sel == 3'b010) begin
-                rf_wr_data <= pc;
-            end
-            else if (rf_wr_data_sel == 3'b011) begin
-                rf_wr_data <= imm_ext32;
-            end
-            else if (rf_wr_data_sel == 3'b100) begin
-                rf_wr_data <= su_dout_reg;
-            end
+            case (rf_wr_data_sel) 
+                3'b000 : rf_wr_data <= alu_dout_reg;
+                3'b001 : rf_wr_data <= dm_dout_reg;
+                3'b010 : rf_wr_data <= pc;
+                3'b011 : rf_wr_data <= imm_ext32;
+                3'b100 : rf_wr_data <= su_dout_reg;
+                3'b101 : rf_wr_data <= pc+4;
+            endcase
+            // if (rf_wr_data_sel == 3'b000) begin
+            //     rf_wr_data <= alu_dout_reg;
+            // end
+            // else if (rf_wr_data_sel == 3'b001) begin
+            //     rf_wr_data <= dm_dout_reg;
+            // end
+            // else if (rf_wr_data_sel == 3'b010) begin
+            //     rf_wr_data <= pc;
+            // end
+            // else if (rf_wr_data_sel == 3'b011) begin
+            //     rf_wr_data <= imm_ext32;
+            // end
+            // else if (rf_wr_data_sel == 3'b100) begin
+            //     rf_wr_data <= su_dout_reg;
+            // end
         end
         // mux before rf data end
     rf U_RF(

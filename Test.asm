@@ -7,7 +7,7 @@
 .text
 	
 	ori $1, $0, 0x2
-	bltz $1, ya
+	bgezal  $1, ya
 	ori $2, $0, 0x2
 	addi $3, $0, -0x2
 	bltz $3, ya
@@ -16,7 +16,8 @@
 
 	blez $0, yaya
 ya: 
-	bgez $1, loo2
+	bgezal $3, ya
+	# bgez $1, loo2
 yaya:
 	blez $1, ya
 	#bgtz $0, yaya
