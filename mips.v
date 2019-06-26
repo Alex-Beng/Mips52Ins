@@ -97,7 +97,7 @@ module mips( clk, rst,
                 DmLw     = 4'b0110,
                 DmWrRf   = 4'b0111,
                 BtypeExe = 4'b1000,
-                JalExe   = 4'b1001,
+                JtypeExe   = 4'b1001,
                 LuiWrRf  = 4'b1010,
                 SuExe    = 4'b1011,
                 SuWrRf   = 4'b1100;
@@ -131,8 +131,9 @@ module mips( clk, rst,
                     |        bgezal | bltzal) begin
                         state <= BtypeExe;
                     end
-                    else if (jal) begin
-                        state <= JalExe;
+                    else if (j  | jal
+                    |        jr | jalr) begin
+                        state <= JtypeExe;
                     end
                     else if (sllv | sll
                     |        srav | sra
@@ -160,7 +161,7 @@ module mips( clk, rst,
                     end
                 end
                 BtypeExe : state <= Fetch;
-                JalExe : state <= Fetch;
+                JtypeExe : state <= Fetch;
                 DmSw   : state <= Fetch;
                 DmLw   : state <= DmWrRf;
                 DmWrRf : state <= Fetch;
@@ -186,8 +187,7 @@ module mips( clk, rst,
     reg [1:0] ext_op;           // ext计算的控制信号
 
     always @(*) begin
-        if (state == JalExe 
-        ||  state == AluWrRf
+        if (state == AluWrRf
         ||  state == DmWrRf
         ||  state == LuiWrRf
         ||  state == SuWrRf) begin
@@ -198,13 +198,18 @@ module mips( clk, rst,
                 rf_wr <= 1'b1;
             end
         end
+        else if (state == JtypeExe) begin
+            if (jal | jalr) begin
+                rf_wr <= 1'b1;
+            end
+        end
         else begin
             rf_wr <= 1'b0;
         end
     end
 
     always @(*) begin
-        if (state == JalExe
+        if (state == JtypeExe
         ||  state == BtypeExe
         ||  state == DmSw
         ||  state == DmWrRf
@@ -276,7 +281,7 @@ module mips( clk, rst,
     always @(*) begin   
     // rf_wr_addr_sel
     // 0-rd[15:11] 1-rt[20:16] 2-1F
-        if (state == JalExe) begin
+        if (state == JtypeExe) begin
             rf_wr_addr_sel <= 2'b10;
         end
         else if (state == AluWrRf) begin
@@ -312,7 +317,6 @@ module mips( clk, rst,
     // rf_wr_data_sel
     // 0->alu_dout 
     // 1->dm_dout 
-    // 2->pc 
     // 3->imm_ext32
     // 4->su_dout
     // 5->pc+4
@@ -322,8 +326,8 @@ module mips( clk, rst,
         else if (state == DmWrRf) begin
             rf_wr_data_sel <= 3'b001;
         end
-        else if (state == JalExe) begin
-            rf_wr_data_sel <= 3'b010;
+        else if (state == JtypeExe) begin
+            rf_wr_data_sel <= 3'b101;
         end
         else if (state == LuiWrRf) begin
             rf_wr_data_sel <= 3'b011;
@@ -415,7 +419,10 @@ module mips( clk, rst,
 
     always @(*) begin
     // npc_op
-    // 0-plus four 1-beq 2-jal
+    // 0-plus four 
+    // 1-beq 
+    // 2-j&jal
+    // 3-jr&jalr
         if (state == BtypeExe) begin
             if (beq && (alu_dout==0)) begin
                 npc_op <= 2'b01;
@@ -439,8 +446,13 @@ module mips( clk, rst,
                 npc_op <= 2'b00;
             end
         end
-        else if (state == JalExe) begin
-            npc_op <= 2'b10;
+        else if (state == JtypeExe) begin
+            if (j | jal) begin
+                npc_op <= 2'b10;
+            end
+            else if (jr | jalr) begin
+                npc_op <= 2'b11;
+            end
         end
         else begin
             npc_op <= 2'b00;
@@ -482,8 +494,11 @@ module mips( clk, rst,
 
     // npc part
     wire [31:0] imm_ext32;
+    reg [31:0] rf_rd_data1_reg;
+    reg [31:0] rf_rd_data2_reg;
+
     npc U_NPC(
-        .pc(pc), .d_ins26(ins[25:0]), .d_ext32(imm_ext32), .npc_op(npc_op), .npc(npc)
+        .pc(pc), .d_ins26(ins[25:0]), .d_ext32(imm_ext32), .d_rfrs32(rf_rd_data1_reg), .npc_op(npc_op), .npc(npc)
     );
     // npc end
 
@@ -536,7 +551,7 @@ module mips( clk, rst,
             case (rf_wr_data_sel) 
                 3'b000 : rf_wr_data <= alu_dout_reg;
                 3'b001 : rf_wr_data <= dm_dout_reg;
-                3'b010 : rf_wr_data <= pc;
+                // 3'b010 : rf_wr_data <= pc+4;
                 3'b011 : rf_wr_data <= imm_ext32;
                 3'b100 : rf_wr_data <= su_dout_reg;
                 3'b101 : rf_wr_data <= pc+4;
@@ -565,8 +580,6 @@ module mips( clk, rst,
         .rd_data2(rf_rd_data2), .rd_reg2(ins[20:16])
     );
 
-    reg [31:0] rf_rd_data1_reg;
-    reg [31:0] rf_rd_data2_reg;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin

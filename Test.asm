@@ -5,11 +5,26 @@
 # Settings -> Memory Configuration -> Compact, Data at address 0
 
 .text
-	
+begin:
 	ori $1, $0, 0x2
-	bgezal  $1, ya
+	j yya
 	ori $2, $0, 0x2
-	addi $3, $0, -0x2
+yya:
+	jal yyaa
+	sllv $7, $2, $1
+	
+yyaa:
+	ori $2, $0, 0x3000
+	addi $2, $2, 0x24
+	
+	
+	jr $2
+	srl  $7, $2, 4 
+	srav $7, $2, $1
+	subi $2, $2, 0x24
+	jalr $2
+	
+	
 	bltz $3, ya
 	#beq $1, $2, loo2
 	# bgtz $1, yaya
@@ -26,12 +41,12 @@ loo2:
 	bne $1, $2, loo2
 	bne $1, $0, loo2
 	
-	sllv $7, $2, $1
+	
 	sll $7, $2, 4 
-	srav $7, $2, $1
+	
 	sra  $7, $2, 4 
 	srlv $7, $2, $1
-	srl  $7, $2, 4 
+	
 	
 	lui $2, 100
 	xori $7, $2, 100
