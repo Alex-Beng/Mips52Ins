@@ -8,6 +8,22 @@
 begin:
 	addi $t1, $0, -17
 	addi $t2, $0, 3
+	sb $t1, 0($0)
+	sb $t1, 4($0)
+	sh $t1, 0($0)
+	sh $t1, 4($0)
+	sw $t1, 8($0)
+	
+	lb $t1, 0($0)
+	lb $t1, 4($0)	
+	lbu $t1, 0($0)
+	lbu $t1, 4($0)
+	lh $t1, 0($0)
+	lhu $t1, 4($0)
+	lw $t1, 0($0)
+	lw $t1, 4($0)
+	
+	
 	div $t1, $t2
 	mfhi $1
 	mflo $1

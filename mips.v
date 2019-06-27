@@ -93,8 +93,8 @@ module mips( clk, rst,
                 AluExe   = 4'b0010,
                 AluWrRf  = 4'b0011,
                 DmExe    = 4'b0100,
-                DmSw     = 4'b0101,
-                DmLw     = 4'b0110,
+                DmStyMa  = 4'b0101,
+                DmLtyMa  = 4'b0110,
                 DmWrRf   = 4'b0111,
                 BtypeExe = 4'b1000,
                 JtypeExe = 4'b1001,
@@ -124,7 +124,12 @@ module mips( clk, rst,
                     else if (lui) begin
                         state <= LuiWrRf;
                     end
-                    else if (lw | sw) begin
+                    else if ( lb | lbu 
+                    |         lh | lhu
+                    |         lw 
+                    |         sb 
+                    |         sh
+                    |         sw) begin
                         state <= DmExe;
                     end
                     else if (beq    | bne
@@ -162,11 +167,15 @@ module mips( clk, rst,
                 LuiWrRf  : state <= Fetch;
                 DtmvWrRf : state <= Fetch;
                 DmExe    : begin
-                    if (sw) begin
-                        state <= DmSw;
+                    if (sb
+                    |   sh
+                    |   sw) begin
+                        state <= DmStyMa;
                     end
-                    else if (lw) begin
-                        state <= DmLw;
+                    else if (lb | lbu
+                    |        lh | lhu
+                    |        lw) begin
+                        state <= DmLtyMa;
                     end
                     else begin
                         state <= Fetch;
@@ -174,8 +183,8 @@ module mips( clk, rst,
                 end
                 BtypeExe : state <= Fetch;
                 JtypeExe : state <= Fetch;
-                DmSw   : state <= Fetch;
-                DmLw   : state <= DmWrRf;
+                DmStyMa   : state <= Fetch;
+                DmLtyMa   : state <= DmWrRf;
                 DmWrRf : state <= Fetch;
                 default: ;
             endcase
@@ -202,6 +211,8 @@ module mips( clk, rst,
     reg [1:0] mdu_op;           // mdu计算的控制信号
     reg [1:0] npc_op;           // npc计算的控制信号
     reg [1:0] ext_op;           // ext计算的控制信号
+    reg [1:0] dm_wr_op;         // dm写入时操作的控制信号
+    reg [2:0] dm_rd_op;         // dm读取时的操作信号
 
     always @(*) begin
         if (state == AluWrRf
@@ -233,7 +244,7 @@ module mips( clk, rst,
     always @(*) begin
         if (state == JtypeExe
         ||  state == BtypeExe
-        ||  state == DmSw
+        ||  state == DmStyMa
         ||  state == DmWrRf
         ||  state == AluWrRf
         ||  state == SuWrRf
@@ -262,7 +273,7 @@ module mips( clk, rst,
     end
 
     always @(*) begin
-        if (state == DmSw) begin
+        if (state == DmStyMa) begin
             dm_wr <= 1'b1;
         end
         else begin
@@ -442,7 +453,8 @@ module mips( clk, rst,
     
     always @(*) begin
     // alu_op
-    // 0->plus 1-minus  
+    // 0->plus 
+    // 1-minus  
     // 2->or 
     // 3->sign-compare(op1<op2高有效)   d1<d2
     // 4->unsign-compare                d1<d2
@@ -580,7 +592,8 @@ module mips( clk, rst,
 
     always @(*) begin
     // ext_op
-    // 0->0-head ext 1->sign ext 
+    // 0->0-head ext 
+    // 1->sign ext 
     // 2->0-tail ext
         if (state == AluExe) begin
             if (anndi 
@@ -599,6 +612,51 @@ module mips( clk, rst,
             ext_op <= 2'b10;
         end
     end
+    
+    always @(*) begin
+    // dm_rd_op
+    // 0-> 8bit zero-ext
+    // 1-> 8bit sign-ext
+    // 2-> 16bit zero-ext
+    // 3-> 16bit sign-ext
+    // 4-> 32bit 
+        if (state == DmLtyMa) begin
+            if (lb) begin
+                dm_rd_op <= 3'b001;
+            end
+            else if (lbu) begin
+                dm_rd_op <= 3'b000;
+            end
+            else if (lh) begin
+                dm_rd_op <= 3'b011;
+            end
+            else if (lhu) begin
+                dm_rd_op <= 3'b010;
+            end
+            else if (lw) begin
+                dm_rd_op <= 3'b100;
+            end
+        end
+    end
+
+    always @(*) begin
+    // dm_wr_op
+    // 0-> 8bit
+    // 1-> 16bit
+    // 2-> 32bit
+        if (state == DmStyMa) begin
+            if (sb) begin
+                dm_wr_op <= 2'b00;
+            end
+            else if (sh) begin
+                dm_wr_op <= 2'b01;
+            end
+            else if (sw) begin
+                dm_wr_op <= 2'b10;
+            end
+        end
+    end
+
     // contral signal end
 
     // pc part
@@ -824,7 +882,9 @@ module mips( clk, rst,
     // dm part
     wire [31:0] dm_dout;
     dm U_DM(
-        .clk(clk), .d_in(rf_rd_data2_reg), .dm_wr(dm_wr), .addr(alu_dout_reg[11:2]), .d_out(dm_dout)
+        .clk(clk), .rst(rst), .d_in(rf_rd_data2_reg), .dm_wr(dm_wr), 
+        .dm_wr_op(dm_wr_op), .dm_rd_op(dm_rd_op),
+        .addr(alu_dout_reg[9:0]), .d_out(dm_dout)
     );
 
     always @(posedge clk or posedge rst) begin
