@@ -22,7 +22,7 @@ module dm( clk, rst, addr, dm_wr, dm_wr_op, dm_rd_op, d_in, d_out );
             case(dm_wr_op)
                 2'b00 : d_mem[addr+3]   <= d_in[7:0];
                 2'b01 : begin
-                    d_mem[addr+2]   <= d_in[15:8];
+                    d_mem[addr+2] <= d_in[15:8];
                     d_mem[addr+3] <= d_in[7:0];
                 end       
                 2'b10 : begin

@@ -15,7 +15,7 @@ module rf( clk, rst,
     reg [31:0] rg_fl[31:0];
 
     always @(posedge clk or posedge rst) begin
-        if (rst) begin
+        if (~rst) begin
             rg_fl[0] = 0;
             rg_fl[1] = 0;
             rg_fl[2] = 0;

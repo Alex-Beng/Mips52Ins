@@ -1,8 +1,48 @@
-module mips( clk, rst, 
+module mycpu_top( clk, resetn, int, 
+             inst_sram_en,
+             inst_sram_wen,
+             inst_sram_addr,
+             inst_sram_wdata,
+             inst_sram_rdata,
+
+             data_sram_en,
+             data_sram_wen,
+             data_sram_addr,
+             data_sram_wdata,
+             data_sram_rdata,
+
+             debug_wb_pc,
+             debug_wb_rf_wen,
+             debug_wb_rf_wnum,
+             debug_wb_rf_wdata,
              IntegerOverflow);
     input clk;
-    input rst;
+    input resetn;
+    input int;
+
+    output inst_sram_en;
+    output [3:0]  inst_sram_wen;
+    output [31:0] inst_sram_addr;
+    output [31:0] inst_sram_wdata;
+    input  [31:0] inst_sram_rdata;
+
+    output data_sram_en;
+    output reg [3:0] data_sram_wen;
+    output [31:0] data_sram_addr;
+    output [31:0] data_sram_wdata;
+    input  [31:0] data_sram_rdata;
+
+    output [31:0] debug_wb_pc;
+    output reg [3:0] debug_wb_rf_wen;
+    output [4:0] debug_wb_rf_wnum;    
+    output [31:0] debug_wb_rf_wdata;
+
     output IntegerOverflow;
+
+    assign inst_sram_en = 1;
+    assign inst_sram_wen = 0;
+    
+
 
     // exception part
     reg IntegerOverflow;
@@ -104,8 +144,8 @@ module mips( clk, rst,
                 MdExe    = 4'b1101,
                 DtmvWrRf = 4'b1110;
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
             state <= Fetch;
         end
         else begin
@@ -664,7 +704,7 @@ module mips( clk, rst,
     wire [31:0] pc;
 
     pc U_PC(
-        .clk(clk), .rst(rst), .pc_wr(pc_wr), .n_pc(npc), .pc(pc)
+        .clk(clk), .rst(resetn), .pc_wr(pc_wr), .n_pc(npc), .pc(pc)
     );
     // pc end
 
@@ -681,27 +721,35 @@ module mips( clk, rst,
 
     // im part
     wire [31:0] im_dout_ins;
-    im U_IM(
-        .addr(pc[11:2]), .d_out(im_dout_ins)
-    );
+    // im U_IM(
+    //     .addr(pc[11:2]), .d_out(im_dout_ins)
+    // );
+
+    assign inst_sram_addr = pc;
+    assign im_dout_ins = inst_sram_rdata;
+
     // im end
 
     // ir part
-    reg [31:0] ins_reg;
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            ins_reg <= 0;
-        end
-        else if (state == Fetch) begin
-            ins_reg <= im_dout_ins;
-        end
-    end
+    // 因为sram 故将ir合并到im
+    assign ins = im_dout_ins;
+    // reg [31:0] ins_reg;
+    // always @(posedge clk or posedge resetn) begin
+    //     if (resetn) begin
+    //         ins_reg <= 0;
+    //     end
+    //     else if (state == Fetch) begin
+    //         ins_reg <= im_dout_ins;
+    //     end
+    // end
 
-    assign ins = ins_reg;
+    // assign ins = ins_reg;
     // ir end
 
     // rf part
-    reg [31:0] dm_dout_reg;     // dm 数据寄存器
+    // 由于sram是下周期才出正确的信号的，故在多周期可直接去掉dm reg直接给回写级
+    reg [31:0] dm_dout;         
+    // reg [31:0] dm_dout_reg;     // dm 数据寄存器
     reg [31:0] alu_dout_reg;    // alu 数据寄存器
     reg [31:0] su_dout_reg;
 
@@ -730,11 +778,11 @@ module mips( clk, rst,
         always @(*) begin
             case (rf_wr_data_sel) 
                 3'b000 : rf_wr_data <= alu_dout_reg;
-                3'b001 : rf_wr_data <= dm_dout_reg;
+                3'b001 : rf_wr_data <= dm_dout;
                 // 3'b010 : rf_wr_data <= pc+4;
                 3'b011 : rf_wr_data <= imm_ext32;
                 3'b100 : rf_wr_data <= su_dout_reg;
-                3'b101 : rf_wr_data <= pc+4;
+                3'b101 : rf_wr_data <= pc+8;
                 3'b110 : rf_wr_data <= hi;
                 3'b111 : rf_wr_data <= lo;
             endcase
@@ -756,15 +804,15 @@ module mips( clk, rst,
         end
         // mux before rf data end
     rf U_RF(
-        .clk(clk), .rst(rst),
+        .clk(clk), .rst(resetn),
         .rf_wr(rf_wr), .wr_data(rf_wr_data), .wr_reg(rf_wr_addr),
         .rd_data1(rf_rd_data1), .rd_reg1(ins[25:21]),
         .rd_data2(rf_rd_data2), .rd_reg2(ins[20:16])
     );
 
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
             rf_rd_data1_reg <= 0;
         end
         else begin
@@ -772,8 +820,8 @@ module mips( clk, rst,
         end
     end
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
             rf_rd_data2_reg <= 0;
         end
         else begin
@@ -808,8 +856,8 @@ module mips( clk, rst,
         .data1(alu_op1), .data2(alu_op2), .alu_op(alu_op), .d_out(alu_dout), .EXP_overflow(alu_exp_overflow)
     );
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
             alu_dout_reg <= 0;
         end
         else begin
@@ -826,8 +874,8 @@ module mips( clk, rst,
         .d_in(rf_rd_data2_reg), .s(s_bits), .su_op(su_op), .d_out(su_dout)
     );
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
             su_dout_reg <= 0;
         end
         else begin
@@ -846,8 +894,8 @@ module mips( clk, rst,
     );
 
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
             hi <= 0;
         end
         else if (hi_wr) begin
@@ -859,8 +907,8 @@ module mips( clk, rst,
         end
     end
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
             lo <= 0;
         end
         else if (lo_wr) begin
@@ -880,21 +928,51 @@ module mips( clk, rst,
     // ext end
 
     // dm part
-    wire [31:0] dm_dout;
-    dm U_DM(
-        .clk(clk), .rst(rst), .d_in(rf_rd_data2_reg), .dm_wr(dm_wr), 
-        .dm_wr_op(dm_wr_op), .dm_rd_op(dm_rd_op),
-        .addr(alu_dout_reg[9:0]), .d_out(dm_dout)
-    );
+    
+    assign data_sram_en = 1;
+    always @(*) begin
+        case (dm_rd_op) 
+            3'b000 : dm_dout <= {24'b0, data_sram_rdata[7:0]};
+            3'b001 : dm_dout <= {{24{data_sram_rdata[7]}}, data_sram_rdata[7:0]};
+            3'b010 : dm_dout <= {16'b0, data_sram_rdata[15:0]};
+            3'b011 : dm_dout <= {{16{data_sram_rdata[15]}}, data_sram_rdata[15:0]};
+            3'b100 : dm_dout <= data_sram_rdata;
+        endcase
+    end
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            dm_dout_reg <= 0;
+    always @(*) begin
+        if (dm_wr) begin
+            if (sb) begin
+                data_sram_wen <= 4'b0001;
+            end
+            else if (sh) begin
+                data_sram_wen <= 4'b0011;
+            end
+            else if (sw) begin
+                data_sram_wen <= 4'b1111;
+            end
         end
         else begin
-            dm_dout_reg <= dm_dout;
+            data_sram_wen = 4'b0000;
         end
     end
+
+    assign data_sram_addr = alu_dout_reg;
+    
+    // dm U_DM(
+    //     .clk(clk), .rst(resetn), .d_in(rf_rd_data2_reg), .dm_wr(dm_wr), 
+    //     .dm_wr_op(dm_wr_op), .dm_rd_op(dm_rd_op),
+    //     .addr(alu_dout_reg[9:0]), .d_out(dm_dout)
+    // );
+
+    // always @(posedge clk or posedge resetn) begin
+    //     if (resetn) begin
+    //         dm_dout_reg <= 0;
+    //     end
+    //     else begin
+    //         dm_dout_reg <= dm_dout;
+    //     end
+    // end
     // dm end
 
     // exp part
@@ -909,6 +987,19 @@ module mips( clk, rst,
             IntegerOverflow <= 1'b0;
         end
     end
-
     // exp end
+
+    // debug signal part
+    assign debug_wb_pc = pc;
+    always @(*) begin
+        if (rf_wr) begin
+            debug_wb_rf_wen <= 4'b1111;
+        end
+        else begin
+            debug_wb_rf_wen <= 4'b0000;
+        end
+    end
+    assign debug_wb_rf_wnum = rf_wr_addr;
+    assign debug_wb_rf_wdata = rf_wr_data;
+    // debug end
 endmodule
