@@ -29,7 +29,7 @@ module mycpu_top( clk, resetn, int,
     output data_sram_en;
     output reg [3:0] data_sram_wen;
     output reg [31:0] data_sram_addr;
-    output [31:0] data_sram_wdata;
+    output reg [31:0] data_sram_wdata;
     input  [31:0] data_sram_rdata;
 
     output [31:0] debug_wb_pc;
@@ -127,12 +127,13 @@ module mycpu_top( clk, resetn, int,
     wire nop    = ( ins[31:0]  == 32'h0000_0000)? 1:0;
     // decode end
 
+
     // fsm part
     reg [0:0] b_state;
     reg [3:0] state;
 
     parameter   NormIns = 1'b0,
-                BtyDIns = 1'b1;
+                DeSoIns = 1'b1;
 
 
     parameter   Fetch    = 4'b0000,
@@ -633,12 +634,13 @@ module mycpu_top( clk, resetn, int,
                 // end
             end
             else if (state == JtypeExe) begin
-                if (j | jal) begin
-                    npc_op <= 2'b10;
-                end
-                else if (jr | jalr) begin
-                    npc_op <= 2'b11;
-                end
+                npc_op <= 2'b00;
+                // if (j | jal) begin
+                //     npc_op <= 2'b10;
+                // end
+                // else if (jr | jalr) begin
+                //     npc_op <= 2'b11;
+                // end
             end
             else if (state == Decode) begin
                 if (nop) begin
@@ -649,7 +651,7 @@ module mycpu_top( clk, resetn, int,
                 npc_op <= 2'b00;
             end
         end
-        else if (b_state == BtyDIns) begin
+        else if (b_state == DeSoIns) begin
             npc_op <= 2'b01;
         end
     end
@@ -729,10 +731,11 @@ module mycpu_top( clk, resetn, int,
             b_state <= NormIns;
         end
         else begin
-            if (state == BtypeExe) begin
-                b_state <= BtyDIns;
+            if (state == BtypeExe
+            ||  state == JtypeExe) begin
+                b_state <= DeSoIns;
             end
-            if (b_state == BtyDIns && pc_wr) begin  // 延迟槽执行完之后回到正常指令
+            if (b_state == DeSoIns && pc_wr) begin  // 延迟槽执行完之后回到正常指令
                 b_state <= NormIns;
             end
         end
@@ -975,12 +978,45 @@ module mycpu_top( clk, resetn, int,
     // 故只能需要的时候读出来
     // assign data_sram_en = 1;
     assign data_sram_en = (state==DmLtyMa | state==DmStyMa);
+
+    reg [1:0] addr_last2;
+    always @(posedge clk) begin
+        if (alu_dout_reg != 0) begin
+            addr_last2 = alu_dout_reg[1:0];
+        end
+    end
     always @(*) begin
         case (dm_rd_op) 
-            3'b000 : dm_dout <= {24'b0, data_sram_rdata[7:0]};
-            3'b001 : dm_dout <= {{24{data_sram_rdata[7]}}, data_sram_rdata[7:0]};
-            3'b010 : dm_dout <= {16'b0, data_sram_rdata[15:0]};
-            3'b011 : dm_dout <= {{16{data_sram_rdata[15]}}, data_sram_rdata[15:0]};
+            3'b000 : begin
+                case(addr_last2) 
+                    2'b11 : dm_dout <= {24'b0, data_sram_rdata[31:24]};
+                    2'b10 : dm_dout <= {24'b0, data_sram_rdata[23:16]};
+                    2'b01 : dm_dout <= {24'b0, data_sram_rdata[15:8]};
+                    2'b00 : dm_dout <= {24'b0, data_sram_rdata[7:0]};
+                endcase
+            end
+            3'b001 : begin
+                case(addr_last2) 
+                    2'b11 : dm_dout <= {{24{data_sram_rdata[31]}}, data_sram_rdata[31:24]};
+                    2'b10 : dm_dout <= {{24{data_sram_rdata[23]}}, data_sram_rdata[23:16]};
+                    2'b01 : dm_dout <= {{24{data_sram_rdata[15]}}, data_sram_rdata[15:8]};
+                    2'b00 : dm_dout <= {{24{data_sram_rdata[7]}}, data_sram_rdata[7:0]};
+                endcase
+            end
+            // 3'b010 : dm_dout <= {16'b0, data_sram_rdata[15:0]};
+            3'b010 : begin
+                case(addr_last2) 
+                    2'b10 : dm_dout <= {16'b0, data_sram_rdata[31:16]};
+                    2'b00 : dm_dout <= {16'b0, data_sram_rdata[15: 0]};
+                endcase
+            end
+            // 3'b011 : dm_dout <= {{16{data_sram_rdata[15]}}, data_sram_rdata[15:0]};
+            3'b011 : begin
+                case(addr_last2) 
+                    2'b10 : dm_dout <= {{16{data_sram_rdata[31]}}, data_sram_rdata[31:16]};
+                    2'b00 : dm_dout <= {{16{data_sram_rdata[15]}}, data_sram_rdata[15: 0]};
+                endcase
+            end
             3'b100 : dm_dout <= data_sram_rdata;
         endcase
     end
@@ -988,10 +1024,20 @@ module mycpu_top( clk, resetn, int,
     always @(*) begin
         if (dm_wr) begin
             if (sb) begin
-                data_sram_wen <= 4'b0001;
+                // data_sram_wen <= 4'b0001;
+                case(alu_dout_reg[1:0]) 
+                    2'b00 : data_sram_wen <= 4'b0001;
+                    2'b01 : data_sram_wen <= 4'b0010;
+                    2'b10 : data_sram_wen <= 4'b0100;
+                    2'b11 : data_sram_wen <= 4'b1000;
+                endcase
             end
             else if (sh) begin
-                data_sram_wen <= 4'b0011;
+                // data_sram_wen <= 4'b0011;
+                case(alu_dout_reg[1:0]) 
+                    2'b00 : data_sram_wen <= 4'b0011;
+                    2'b10 : data_sram_wen <= 4'b1100;
+                endcase
             end
             else if (sw) begin
                 data_sram_wen <= 4'b1111;
@@ -1022,7 +1068,27 @@ module mycpu_top( clk, resetn, int,
         end
     end
     
-    assign data_sram_wdata = rf_rd_data2_reg;
+    // 需要与wen对齐
+    // assign data_sram_wdata = rf_rd_data2_reg;
+    always @(*) begin
+        if (sb) begin
+            case (alu_dout_reg[1:0])
+                2'b00 : data_sram_wdata <= {24'b0, rf_rd_data2_reg[7:0]};
+                2'b01 : data_sram_wdata <= {16'b0, rf_rd_data2_reg[7:0], 8'b0};
+                2'b10 : data_sram_wdata <= {8'b0, rf_rd_data2_reg[7:0], 16'b0};
+                2'b11 : data_sram_wdata <= {rf_rd_data2_reg[7:0], 24'b0};
+            endcase
+        end
+        else if (sh) begin
+            case (alu_dout_reg[1:0])
+                2'b00 : data_sram_wdata <= {16'b0, rf_rd_data2_reg[15:0]};
+                2'b10 : data_sram_wdata <= {rf_rd_data2_reg[15:0], 16'b0};
+            endcase
+        end
+        else if (sw) begin
+            data_sram_wdata <= rf_rd_data2_reg;
+        end
+    end
 
     // dm U_DM(
     //     .clk(clk), .rst(resetn), .d_in(rf_rd_data2_reg), .dm_wr(dm_wr), 
@@ -1091,6 +1157,14 @@ module mycpu_top( clk, resetn, int,
             end
             else begin
                 pc_after_b_delay <= pc+8;
+            end
+        end
+        if (state == JtypeExe) begin
+            if (j | jal) begin
+                pc_after_b_delay <= {pc[31:28], ins[25:0], 2'b00};
+            end
+            else  if (jr | jalr) begin
+                pc_after_b_delay <= rf_rd_data1_reg;
             end
         end
     end
