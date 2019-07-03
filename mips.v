@@ -28,7 +28,7 @@ module mycpu_top( clk, resetn, int,
 
     output data_sram_en;
     output reg [3:0] data_sram_wen;
-    output [31:0] data_sram_addr;
+    output reg [31:0] data_sram_addr;
     output [31:0] data_sram_wdata;
     input  [31:0] data_sram_rdata;
 
@@ -89,7 +89,7 @@ module mycpu_top( clk, resetn, int,
     wire xori   = ( ins[31:26] == 6'b00_1110)? 1:0;
 
     wire sllv   = ( ins[31:26] == 6'b00_0000 && ins[10:6]  == 5'b00_000 && ins[5:0] == 6'b000_100 )? 1:0;
-    wire sll    = ( ins[31:26] == 6'b00_0000 && ins[25:21] == 5'b00_000 && ins[5:0] == 6'b000_000 )? 1:0;
+    wire sll    = ( ins[31:26] == 6'b00_0000 && ins[25:21] == 5'b00_000 && ins[5:0] == 6'b000_000 && ins[20:6] != 0 )? 1:0;
     wire srav   = ( ins[31:26] == 6'b00_0000 && ins[10:6]  == 5'b00_000 && ins[5:0] == 6'b000_111 )? 1:0;
     wire sra    = ( ins[31:26] == 6'b00_0000 && ins[25:21] == 5'b00_000 && ins[5:0] == 6'b000_011 )? 1:0;
     wire srlv   = ( ins[31:26] == 6'b00_0000 && ins[10:6]  == 5'b00_000 && ins[5:0] == 6'b000_110 )? 1:0;
@@ -123,10 +123,17 @@ module mycpu_top( clk, resetn, int,
     wire sb     = ( ins[31:26] == 6'b10_1000)? 1:0;
     wire sh     = ( ins[31:26] == 6'b10_1001)? 1:0;
     wire sw     = ( ins[31:26] == 6'b10_1011)? 1:0;
+
+    wire nop    = ( ins[31:0]  == 32'h0000_0000)? 1:0;
     // decode end
 
     // fsm part
+    reg [0:0] b_state;
     reg [3:0] state;
+
+    parameter   NormIns = 1'b0,
+                BtyDIns = 1'b1;
+
 
     parameter   Fetch    = 4'b0000,
                 Decode   = 4'b0001,
@@ -160,6 +167,9 @@ module mycpu_top( clk, resetn, int,
                     |    oor  | ori
                     |    xoor | xori) begin
                         state <= AluExe;
+                    end
+                    else if (nop) begin
+                        state <= Fetch;
                     end
                     else if (lui) begin
                         state <= LuiWrRf;
@@ -233,6 +243,7 @@ module mycpu_top( clk, resetn, int,
     // fsm end
 
     // control signal part
+
     wire [31:0] alu_dout;       // alu输出信号
 
     reg rf_wr;                  // 寄存器写使能
@@ -254,6 +265,7 @@ module mycpu_top( clk, resetn, int,
     reg [1:0] dm_wr_op;         // dm写入时操作的控制信号
     reg [2:0] dm_rd_op;         // dm读取时的操作信号
 
+    reg [31:0] pc_after_b_delay;    // b-type 跳转地址
     always @(*) begin
         if (state == AluWrRf
         ||  state == DmWrRf
@@ -290,7 +302,8 @@ module mycpu_top( clk, resetn, int,
         ||  state == SuWrRf
         ||  state == LuiWrRf
         ||  state == MdExe
-        ||  state == DtmvWrRf) begin
+        ||  state == DtmvWrRf
+        || (state == Decode && nop)) begin
             pc_wr <= 1'b1;
         end
         // else if (state == BtypeExe) begin
@@ -594,39 +607,50 @@ module mycpu_top( clk, resetn, int,
     // 1-beq 
     // 2-j&jal
     // 3-jr&jalr
-        if (state == BtypeExe) begin
-            if (beq && (alu_dout==0)) begin
-                npc_op <= 2'b01;
+        if (b_state == NormIns) begin
+            if (state == BtypeExe) begin
+                npc_op <= 2'b00;
+                // if (beq && (alu_dout==0)) begin
+                //     npc_op <= 2'b01;
+                // end
+                // else if (bne && (alu_dout!=0)) begin
+                //     npc_op <= 2'b01;
+                // end
+                // else if ((bgez | bgezal) && (alu_dout==0)) begin
+                //     npc_op <= 2'b01;
+                // end
+                // else if (bgtz && (alu_dout!=0)) begin
+                //     npc_op <= 2'b01;
+                // end
+                // else if (blez && (alu_dout==0)) begin
+                //     npc_op <= 2'b01;
+                // end
+                // else if ((bltz | bltzal) && (alu_dout!=0)) begin
+                //     npc_op <= 2'b01;
+                // end
+                // else begin
+                //     npc_op <= 2'b00;
+                // end
             end
-            else if (bne && (alu_dout!=0)) begin
-                npc_op <= 2'b01;
+            else if (state == JtypeExe) begin
+                if (j | jal) begin
+                    npc_op <= 2'b10;
+                end
+                else if (jr | jalr) begin
+                    npc_op <= 2'b11;
+                end
             end
-            else if ((bgez | bgezal) && (alu_dout==0)) begin
-                npc_op <= 2'b01;
-            end
-            else if (bgtz && (alu_dout!=0)) begin
-                npc_op <= 2'b01;
-            end
-            else if (blez && (alu_dout==0)) begin
-                npc_op <= 2'b01;
-            end
-            else if ((bltz | bltzal) && (alu_dout!=0)) begin
-                npc_op <= 2'b01;
+            else if (state == Decode) begin
+                if (nop) begin
+                    npc_op <= 2'b00;
+                end
             end
             else begin
                 npc_op <= 2'b00;
             end
         end
-        else if (state == JtypeExe) begin
-            if (j | jal) begin
-                npc_op <= 2'b10;
-            end
-            else if (jr | jalr) begin
-                npc_op <= 2'b11;
-            end
-        end
-        else begin
-            npc_op <= 2'b00;
+        else if (b_state == BtyDIns) begin
+            npc_op <= 2'b01;
         end
     end
 
@@ -699,6 +723,24 @@ module mycpu_top( clk, resetn, int,
 
     // contral signal end
 
+    // fsm for b-type part
+    always @(posedge clk or posedge resetn) begin
+        if (~resetn) begin
+            b_state <= NormIns;
+        end
+        else begin
+            if (state == BtypeExe) begin
+                b_state <= BtyDIns;
+            end
+            if (b_state == BtyDIns && pc_wr) begin  // 延迟槽执行完之后回到正常指令
+                b_state <= NormIns;
+            end
+        end
+    end
+    // fsm for b-type end
+
+
+
     // pc part
     wire [31:0] npc;
     wire [31:0] pc;
@@ -715,7 +757,7 @@ module mycpu_top( clk, resetn, int,
     reg [31:0] rf_rd_data2_reg;
 
     npc U_NPC(
-        .pc(pc), .d_ins26(ins[25:0]), .d_ext32(imm_ext32), .d_rfrs32(rf_rd_data1_reg), .npc_op(npc_op), .npc(npc)
+        .pc(pc), .d_ins26(ins[25:0]), .d_ext32(imm_ext32), .d_rfrs32(rf_rd_data1_reg), .d_btypc(pc_after_b_delay), .npc_op(npc_op), .npc(npc)
     );
     // npc end
 
@@ -929,7 +971,10 @@ module mycpu_top( clk, resetn, int,
 
     // dm part
     
-    assign data_sram_en = 1;
+    // 因为一直1是读不出东西的
+    // 故只能需要的时候读出来
+    // assign data_sram_en = 1;
+    assign data_sram_en = (state==DmLtyMa | state==DmStyMa);
     always @(*) begin
         case (dm_rd_op) 
             3'b000 : dm_dout <= {24'b0, data_sram_rdata[7:0]};
@@ -957,8 +1002,28 @@ module mycpu_top( clk, resetn, int,
         end
     end
 
-    assign data_sram_addr = alu_dout_reg;
+    // 涉及到虚实地址转换，故不能直接赋给地址
+    // assign data_sram_addr = alu_dout_reg;
+    always @(*) begin
+        if (alu_dout_reg[31:28] == 4'hA) begin
+            data_sram_addr <= {4'b0000, alu_dout_reg[27:0]};
+        end
+        else if (alu_dout_reg[31:28] == 4'hB) begin
+            data_sram_addr <= {4'b0001, alu_dout_reg[27:0]};
+        end
+        else if (alu_dout_reg[31:28] == 4'h8) begin
+            data_sram_addr <= {4'b0000, alu_dout_reg[27:0]};
+        end
+        else if (alu_dout_reg[31:28] == 4'h9) begin
+            data_sram_addr <= {4'b0001, alu_dout_reg[27:0]};
+        end
+        else begin
+            data_sram_addr <= alu_dout_reg;
+        end
+    end
     
+    assign data_sram_wdata = rf_rd_data2_reg;
+
     // dm U_DM(
     //     .clk(clk), .rst(resetn), .d_in(rf_rd_data2_reg), .dm_wr(dm_wr), 
     //     .dm_wr_op(dm_wr_op), .dm_rd_op(dm_rd_op),
@@ -1002,4 +1067,32 @@ module mycpu_top( clk, resetn, int,
     assign debug_wb_rf_wnum = rf_wr_addr;
     assign debug_wb_rf_wdata = rf_wr_data;
     // debug end
+
+    // b-type pc part
+    always @(posedge clk) begin
+        if (state == BtypeExe) begin
+            if (beq && (alu_dout==0)) begin
+                pc_after_b_delay <= pc+4+{imm_ext32[29:0], 2'b00};
+            end
+            else if (bne && (alu_dout!=0)) begin
+                pc_after_b_delay <= pc+4+{imm_ext32[29:0], 2'b00};
+            end
+            else if ((bgez | bgezal) && (alu_dout==0)) begin
+                pc_after_b_delay <= pc+4+{imm_ext32[29:0], 2'b00};
+            end
+            else if (bgtz && (alu_dout!=0)) begin
+                pc_after_b_delay <= pc+4+{imm_ext32[29:0], 2'b00};
+            end
+            else if (blez && (alu_dout==0)) begin
+                pc_after_b_delay <= pc+4+{imm_ext32[29:0], 2'b00};
+            end
+            else if ((bltz | bltzal) && (alu_dout!=0)) begin
+                pc_after_b_delay <= pc+4+{imm_ext32[29:0], 2'b00}; 
+            end
+            else begin
+                pc_after_b_delay <= pc+8;
+            end
+        end
+    end
+    // b-type pc end
 endmodule
