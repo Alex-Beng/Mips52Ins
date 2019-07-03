@@ -7,7 +7,7 @@ module pc( clk, rst, pc_wr, n_pc, pc );
 
     reg [31:0] cnt;
 
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (~rst) begin
             cnt <= 32'hbfc00000;
         end

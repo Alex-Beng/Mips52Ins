@@ -152,7 +152,7 @@ module mycpu_top( clk, resetn, int,
                 MdExe    = 4'b1101,
                 DtmvWrRf = 4'b1110;
 
-    always @(posedge clk or posedge resetn) begin
+    always @(posedge clk) begin
         if (~resetn) begin
             state <= Fetch;
         end
@@ -856,7 +856,7 @@ module mycpu_top( clk, resetn, int,
     );
 
 
-    always @(posedge clk or posedge resetn) begin
+    always @(posedge clk) begin
         if (~resetn) begin
             rf_rd_data1_reg <= 0;
         end
@@ -865,7 +865,7 @@ module mycpu_top( clk, resetn, int,
         end
     end
 
-    always @(posedge clk or posedge resetn) begin
+    always @(posedge clk) begin
         if (~resetn) begin
             rf_rd_data2_reg <= 0;
         end
@@ -901,7 +901,7 @@ module mycpu_top( clk, resetn, int,
         .data1(alu_op1), .data2(alu_op2), .alu_op(alu_op), .d_out(alu_dout), .EXP_overflow(alu_exp_overflow)
     );
 
-    always @(posedge clk or posedge resetn) begin
+    always @(posedge clk) begin
         if (~resetn) begin
             alu_dout_reg <= 0;
         end
@@ -919,7 +919,7 @@ module mycpu_top( clk, resetn, int,
         .d_in(rf_rd_data2_reg), .s(s_bits), .su_op(su_op), .d_out(su_dout)
     );
 
-    always @(posedge clk or posedge resetn) begin
+    always @(posedge clk) begin
         if (~resetn) begin
             su_dout_reg <= 0;
         end
@@ -939,7 +939,7 @@ module mycpu_top( clk, resetn, int,
     );
 
 
-    always @(posedge clk or posedge resetn) begin
+    always @(posedge clk) begin
         if (~resetn) begin
             hi <= 0;
         end
@@ -952,7 +952,7 @@ module mycpu_top( clk, resetn, int,
         end
     end
 
-    always @(posedge clk or posedge resetn) begin
+    always @(posedge clk) begin
         if (~resetn) begin
             lo <= 0;
         end
